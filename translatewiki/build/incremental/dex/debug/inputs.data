@@ -1,0 +1,20 @@
+# incremental data. DO NOT EDIT.
+# format is <lastModified> <length> <SHA-1> <path>
+# Encoding is UTF-8
+1374670530000 349 e3184d1eab17b14b79b799851b5a5e824688824a /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$attr.class
+1374681563000 3238 92461ef3f42f02106750809b0996536b1b03cbe1 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/twapi.class
+1374670530000 351 48d3b315f15dd5856ec695b4fcd9d44d10fc749f /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/BuildConfig.class
+1374680803000 2601 aa16d3af6a5120771cf73c7a3073b26f00455713 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/twapi$1.class
+1374680803000 397 accf755c7985df2c169aef61e1716192087f6b6b /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$menu.class
+1374681372000 2352 e2c2d452ddef217ede784c9caef92f3cd75182b5 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/MainActivity.class
+1374680803000 412 01b62094c1b8a3917325b5486f54cb872fc2f05b /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$layout.class
+1374680803000 612 cd2f6ba7c129850a114c3eb3d8a1643e58ba7f79 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$id.class
+1374680803000 574 cea7aa8bf4739d3a9db9d892598333e4014d186f /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$string.class
+1374176508000 29173 f70e680861fdf9449819003e7799a4e9aca047f8 /Users/orsa/Dev/translatewikiProject/translatewiki/libs/android-async-http-1.4.3.jar
+1374670530000 416 810c3748618efba073445a96577258df4117cb90 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$drawable.class
+1369432937000 490914 3fe75433da602500cc71fcc1c46e5550291dd45d /Applications/Android Studio.app/sdk/extras/android/m2repository/com/android/support/support-v4/13.0.0/support-v4-13.0.0.jar
+1374681372000 940 2e28a8b17bb1cae785206a42a28a0cce6ea555ac /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/MainActivity$1.class
+1374680803000 707 c13f8a9f256b360684d8eee262903a8d6f82cd10 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R.class
+1374680803000 440 60084cef053487b3ee8c66401a6735fa96d52b4e /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$style.class
+1374670530000 470 faff3911f6ff1ac44762d80f5c0056197985245c /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/R$dimen.class
+1374680803000 163 127177d6b0e79ed8138ed08ab271d7e5f3bc99d5 /Users/orsa/Dev/translatewikiProject/translatewiki/build/classes/debug/com/translatewiki/app/IFunction.class
