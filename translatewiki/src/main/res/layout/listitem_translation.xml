@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="32dp"
+    android:background="@drawable/message_display"
+    android:padding="0dp"
+    android:focusable="false"
+    android:tag="pr">
+
+
+    <TextView
+        android:id="@+id/lblSourceText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:gravity="center_horizontal"
+        android:padding="4dip"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="#565656"
+        android:textSize="12dp"
+        android:text="source text"/>
+
+    <ImageView
+        android:id="@+id/dividerSourceTranslate"
+        android:layout_width="fill_parent"
+        android:layout_height="2dp"
+        android:paddingBottom="0dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="0dp"
+        android:scaleType="fitXY"
+        android:layout_below="@id/lblSourceText"
+        android:src="@android:drawable/divider_horizontal_bright" />
+
+    <TextView
+        android:id="@+id/lblTranslatedText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@id/dividerSourceTranslate"
+        android:gravity="center_horizontal"
+        android:padding="4dip"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="#252525"
+        android:textStyle="bold"
+        android:textSize="12dp"
+        android:text="translated"/>
+
+    <RelativeLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:paddingEnd="0dp"
+        android:paddingStart="0dp"
+        android:id="@id/optionsLayout"
+        android:layout_below="@id/lblTranslatedText"
+        android:layout_marginLeft="6dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginRight="6dp"
+        android:paddingBottom="6dp">
+
+        <Button
+            android:id="@+id/btnAccept"
+            android:layout_width="@dimen/btn_size"
+            android:layout_height="@dimen/btn_size"
+            android:layout_weight="1"
+            android:background="@drawable/accept"
+            android:gravity="center|fill_horizontal"
+            android:width="@dimen/btn_size"
+            android:height="@dimen/btn_size"
+            android:layout_gravity="left"
+            android:layout_alignParentLeft="true"
+            android:layout_alignWithParentIfMissing="false"
+            android:layout_marginRight="6dp"
+            android:layout_marginBottom="6dp"/>
+
+        <Button
+            android:id="@+id/btnReject"
+            android:layout_width="@dimen/btn_size"
+            android:layout_height="@dimen/btn_size"
+            android:layout_weight="1"
+            android:background="@drawable/reject"
+            android:gravity="right"
+            android:width="@dimen/btn_size"
+            android:height="@dimen/btn_size"
+            android:layout_gravity="right"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginRight="6dp"
+            android:layout_marginBottom="6dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="0"
+            android:id="@+id/lblAcceptText"
+            android:textStyle="bold"
+            android:textColor="#5db72e"
+            android:textSize="16dp"
+            android:layout_alignBottom="@+id/btnAccept"
+            android:layout_alignRight="@+id/btnAccept"
+            android:padding="0dp"
+            android:layout_margin="0dp"/>
+    </RelativeLayout>
+
+</RelativeLayout>

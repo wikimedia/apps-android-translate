@@ -1,4 +1,8 @@
-package net.translatewiki.app;
+package org.mediawiki.auth;
+
+import java.io.IOException;
+
+import net.translatewiki.app.R;
 
 import android.accounts.AbstractAccountAuthenticator;
 import android.accounts.Account;
@@ -9,28 +13,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
-import java.io.IOException;
+import org.mediawiki.api.MWApi;
 
-/**
- * Created by orsa on 27/7/13.
- */
-public class TWAccountAuthenticator extends AbstractAccountAuthenticator {
+public class WikiAccountAuthenticator extends AbstractAccountAuthenticator {
 
-    public static final String ACCOUNT_TYPE = "net.translate.app";
     private Context context;
-
-    public TWAccountAuthenticator(Context context) {
+    public WikiAccountAuthenticator(Context context) {
         super(context);
         this.context = context;
     }
 
     @Override
-    public Bundle editProperties(AccountAuthenticatorResponse accountAuthenticatorResponse, String s) {
-        return null;
-    }
-
-    @Override
-    public Bundle addAccount(AccountAuthenticatorResponse response, String s, String s2, String[] strings, Bundle options) throws NetworkErrorException {
+    public Bundle addAccount(AccountAuthenticatorResponse response, String accountType, String authTokenType, String[] requiredFeatures, Bundle options) throws NetworkErrorException {
+        // TODO Auto-generated method stub
         final Intent intent = new Intent(context, LoginActivity.class);
         intent.putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response);
         final Bundle bundle = new Bundle();
@@ -39,12 +34,19 @@ public class TWAccountAuthenticator extends AbstractAccountAuthenticator {
     }
 
     @Override
-    public Bundle confirmCredentials(AccountAuthenticatorResponse accountAuthenticatorResponse, Account account, Bundle bundle) throws NetworkErrorException {
+    public Bundle confirmCredentials(AccountAuthenticatorResponse response, Account account, Bundle options) throws NetworkErrorException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Bundle editProperties(AccountAuthenticatorResponse response, String accountType) {
+        // TODO Auto-generated method stub
         return null;
     }
 
     private String getAuthCookie(String username, String password) throws IOException {
-        TWApi api = TWApi.getInstance();
+        MWApi api = ((MWApiApplication)context.getApplicationContext()).getApi();
         String result = api.login(username, password);
         if(result.equals("Success")) {
             return api.getAuthCookie();
@@ -52,9 +54,8 @@ public class TWAccountAuthenticator extends AbstractAccountAuthenticator {
             return null;
         }
     }
-
     @Override
-    public Bundle getAuthToken(AccountAuthenticatorResponse response, Account account, String s, Bundle options) throws NetworkErrorException {
+    public Bundle getAuthToken(AccountAuthenticatorResponse response, Account account, String authTokenType, Bundle options) throws NetworkErrorException {
         // Extract the username and password from the Account Manager, and ask
         // the server for an appropriate AuthToken.
         final AccountManager am = AccountManager.get(context);
@@ -71,7 +72,7 @@ public class TWAccountAuthenticator extends AbstractAccountAuthenticator {
             if (authCookie != null) {
                 final Bundle result = new Bundle();
                 result.putString(AccountManager.KEY_ACCOUNT_NAME, account.name);
-                result.putString(AccountManager.KEY_ACCOUNT_TYPE, ACCOUNT_TYPE);
+                result.putString(AccountManager.KEY_ACCOUNT_TYPE, context.getString(R.string.account_type_identifier));
                 result.putString(AccountManager.KEY_AUTHTOKEN, authCookie);
                 return result;
             }
@@ -89,19 +90,22 @@ public class TWAccountAuthenticator extends AbstractAccountAuthenticator {
     }
 
     @Override
-    public String getAuthTokenLabel(String s) {
+    public String getAuthTokenLabel(String authTokenType) {
+        // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public Bundle updateCredentials(AccountAuthenticatorResponse accountAuthenticatorResponse, Account account, String s, Bundle bundle) throws NetworkErrorException {
-        return null;
-    }
-
-    @Override
-    public Bundle hasFeatures(AccountAuthenticatorResponse accountAuthenticatorResponse, Account account, String[] strings) throws NetworkErrorException {
+    public Bundle hasFeatures(AccountAuthenticatorResponse response, Account account, String[] features) throws NetworkErrorException {
         final Bundle result = new Bundle();
         result.putBoolean(AccountManager.KEY_BOOLEAN_RESULT, false);
         return result;
     }
+
+    @Override
+    public Bundle updateCredentials(AccountAuthenticatorResponse response, Account account, String authTokenType, Bundle options) throws NetworkErrorException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

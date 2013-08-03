@@ -10,12 +10,29 @@
     <string name="link"><a href="https://translatewiki.net/w/i.php?title=Special:UserLogin%26type=signup">signup</a></string>
     <string name="title_activity_translate">Translate</string>
     <string name="logout">logout</string>
-    <string name="title_activity_main">MainActivity</string>
+    <string name="title_activity_main">Proofread</string>
     <string name="preference_tracking">Text for preference that enables the user to enable or disable collection of data about the user\'s usage patterns.</string>
     <string name="preference_tracking_summary">Help text for preference that enables the user to enable or disable collection of data about the user\'s usage patterns.</string>
     <string name="preference_file_key">net.translatewiki.app.preference</string>
     <string name="saved_username">net.translatewiki.app.saved_username</string>
     <string name="saved_password">net.translatewiki.app.saved_password</string>
+    <string name="account_type_identifier">net.translatewiki.auth</string>
+    <string name="user_agent">TranslateWiki app for Android</string>
+    <string name="title_activity_login">Sign in to TranslateWiki</string>
+    <string name="login_subtitle">Login to Translate!</string>
+    <string name="translated_text">Translated Text</string>
+    <string name="source_text">Source Text</string>
+    <string name="button_accept_translation">Correct</string>
+    <string name="button_reject_translation">Reject</string>
+    <string name="language_preference">Language</string>
+    <string name="settings_menu">Settings</string>
+    <string name="settings_title">Settings</string>
 
+    <string name="logging_in_title">Logging In</string>
+    <string name="logging_in_message">Witty text here</string>
+    <string name="login_success">Login success!</string>
+    <string name="login_failed">Login failed!</string>
+    <string name="authentication_failed">Authentication failed!</string>
+    <string name="action_search">Search</string>
 
 </resources>
