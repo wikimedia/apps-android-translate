@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="32dp"
+    android:padding="0dp"
+    android:tag="input"
+    android:background="@drawable/message_display"
+    android:baselineAligned="false"
+    android:focusableInTouchMode="false">
+
+    <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/editText"
+            android:textColor="@android:color/black"
+            android:layout_marginRight="0dp"
+            android:gravity="left|top"
+            android:inputType="textMultiLine"
+            android:hint="Your translation"
+            android:textSize="16dp"
+            android:layout_alignParentTop="false"
+            android:layout_alignParentBottom="false"
+            android:layout_alignWithParentIfMissing="false"
+            android:layout_alignTop="@+id/button"
+            android:layout_toLeftOf="@+id/button"
+            android:layout_alignBottom="@+id/button"
+            android:background="#00000000"
+            android:padding="1dp"/>
+
+    <Button
+            android:layout_width="50dp"
+            android:layout_height="40dp"
+            android:text="Done"
+            android:id="@+id/sendBtn"
+            android:layout_gravity="center_horizontal|right"
+            android:padding="0dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentRight="true"
+            android:textSize="16dp"
+            />
+</RelativeLayout>

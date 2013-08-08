@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:orientation="vertical"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="32dp"
+            android:padding="0dp"
+            android:tag="cm"
+            android:baselineAligned="false"
+            android:focusableInTouchMode="false">
+
+    <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="commmitted text blabla"
+            android:id="@+id/lblCommittedText"
+            android:layout_gravity="center_horizontal|top"
+            android:textColor="@android:color/darker_gray"
+            android:singleLine="false"
+            android:textSize="16dp"/>
+
+    <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="fill_parent"
+            android:layout_height="2dp"
+            android:scaleType="fitXY"
+            android:src="@android:drawable/divider_horizontal_bright"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentLeft="true"
+            android:layout_marginTop="5dp"/>
+
+    </LinearLayout>
