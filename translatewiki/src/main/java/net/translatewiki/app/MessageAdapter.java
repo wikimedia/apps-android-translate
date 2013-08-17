@@ -66,6 +66,20 @@ public class MessageAdapter extends Message {
         }
 
         @Override
+        public int getViewTypeCount (){
+            return 2;
+        }
+
+        @Override
+        public int getItemViewType (int position){
+
+            if (position==getCount()-1)
+                return 1;
+            else
+                return 0;
+        }
+
+        @Override
         public int getCount(){
             return super.getCount()+1; //room for one more cell which is the input area
         }
@@ -78,7 +92,8 @@ public class MessageAdapter extends Message {
             if (position == getCount()-1){
                 // means it's the last line. we populate it with input area
 
-                return ((MainActivity)getContext()).getViewForInput(parent, m);
+                return convertView!=null ? convertView
+                                         : ((MainActivity)getContext()).getViewForInput(parent, m);
             }
             //else
             return super.getView(position,convertView,parent); // the usual, just use "listitem_suggestion"

@@ -73,12 +73,21 @@ public class Message {
         return mGrupe;
     }
 
-    public void addSuggestion(String s) {
-        suggestionsList.add(s);
+    public boolean addSuggestion(String s) {
+        // make sure it is not duplicated first
+        if (!suggestionsList.contains(s))
+        {
+            return suggestionsList.add(s);
+        }
+        return false;
     }
 
     public String getSuggestion(int i) {
         return suggestionsList.get(i);
+    }
+
+    public void clearSuggestions(){
+        suggestionsList.clear();
     }
 
     public ArrayList<String> getSuggestionsList() {

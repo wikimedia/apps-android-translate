@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_margin="32dp"
+    android:layout_margin="10dp"
     android:padding="0dp"
     android:focusable="false"
     android:tag="pr"
@@ -29,8 +30,8 @@
         android:layout_width="fill_parent"
         android:layout_height="2dp"
         android:paddingBottom="0dp"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
+        android:paddingLeft="0dp"
+        android:paddingRight="0dp"
         android:paddingTop="0dp"
         android:scaleType="fitXY"
         android:layout_below="@id/lblSourceText"
@@ -60,10 +61,9 @@
         android:paddingStart="0dp"
         android:id="@id/optionsLayout"
         android:layout_below="@id/lblTranslatedText"
-        android:layout_marginLeft="6dp"
-        android:layout_marginBottom="6dp"
-        android:layout_marginRight="6dp"
-        android:paddingBottom="6dp">
+        android:layout_marginLeft="0dp"
+        android:layout_marginRight="0dp"
+        android:background="@drawable/message_display">
 
         <Button
             android:id="@+id/btnAccept"
@@ -74,11 +74,62 @@
             android:gravity="center|fill_horizontal"
             android:width="@dimen/btn_size"
             android:height="@dimen/btn_size"
-            android:layout_gravity="left"
-            android:layout_alignParentLeft="true"
             android:layout_alignWithParentIfMissing="false"
-            android:layout_marginRight="6dp"
-            android:layout_marginBottom="6dp"/>
+            android:layout_marginLeft="60dp"
+            android:layout_centerVertical="true"
+            android:layout_marginTop="6dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="0"
+            android:id="@+id/lblAcceptText"
+            android:textStyle="bold"
+            android:textColor="#5db72e"
+            android:textSize="16dp"
+            android:padding="0dp"
+            android:layout_marginLeft="80dp"
+            android:layout_marginTop="16dp"/>
+
+        <ImageView
+                android:id="@+id/imageView"
+                android:layout_width="2dp"
+                android:layout_height="40dp"
+                android:paddingBottom="0dp"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingTop="0dp"
+                android:scaleType="fitXY"
+                android:src="@android:drawable/divider_horizontal_bright"
+                android:padding="0dp"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"/>
+
+        <ImageButton
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:id="@+id/btnEdit"
+                android:src="@android:drawable/ic_menu_edit"
+                android:background="@android:color/transparent"
+                android:scaleType="centerCrop"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@+id/imageView"/>
+
+        <ImageView
+                android:id="@+id/imageView2"
+                android:layout_width="2dp"
+                android:layout_height="40dp"
+                android:paddingBottom="0dp"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingTop="0dp"
+                android:scaleType="fitXY"
+                android:src="@android:drawable/divider_horizontal_bright"
+                android:padding="0dp"
+                android:layout_alignParentTop="true"
+                android:layout_toRightOf="@+id/btnEdit"/>
 
         <Button
             android:id="@+id/btnReject"
@@ -90,24 +141,10 @@
             android:width="@dimen/btn_size"
             android:height="@dimen/btn_size"
             android:layout_gravity="right"
-            android:layout_alignParentTop="true"
+            android:layout_marginRight="60dp"
             android:layout_alignParentRight="true"
-            android:layout_marginRight="6dp"
-            android:layout_marginBottom="6dp"/>
+            android:layout_marginTop="6dp"/>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:text="0"
-            android:id="@+id/lblAcceptText"
-            android:textStyle="bold"
-            android:textColor="#5db72e"
-            android:textSize="16dp"
-            android:layout_alignBottom="@+id/btnAccept"
-            android:layout_alignRight="@+id/btnAccept"
-            android:padding="0dp"
-            android:layout_margin="0dp"/>
     </RelativeLayout>
 
-</RelativeLayout>
+</LinearLayout>

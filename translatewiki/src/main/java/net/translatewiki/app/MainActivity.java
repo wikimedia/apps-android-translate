@@ -1,6 +1,8 @@
 package net.translatewiki.app;
 
+import android.app.ActionBar;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -10,6 +12,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.text.Editable;
+import android.text.Layout;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -18,11 +21,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -46,10 +52,16 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     public static final String  CUR_PROJECT     = "!additions";
     public static final Integer FETCH_SIZE      = 7;
     public static final int     CURRENT_STATE   = 2;    // 1 - proofread    2 - translate
-    public static final String  CUR_LANG        = "hi";
+    public static final String  CUR_LANG        = "he";
+    public static final int     MAX_LENGTH_FOR_MESSAGE     = 100;
+    public static final int     MAX_LENGTH_FOR_SUGGESTION  = 100;
+    public static final int     MAX_NO_SUGGESTIONS         = 3;
+    public static final Double  MIN_QUALITY_FOR_SUGGESTION = 0.9;
+
 
     private String reviewToken = null;
     private String translateToken = null;
+    public static RejectedMessagesDbHelper mDbHelper;  //database helper for rejected messages
 
     private Message curMessage;
     private static MessageListAdapter translations; // serve as a data controller for the messages
@@ -106,33 +118,35 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         .post();
             } catch (IOException e) {
                 e.printStackTrace();
+                Toast toast =  Toast.makeText(context,"Load Fail", Toast.LENGTH_LONG);
+                toast.show();
+                this.cancel(true);
                 return null;
             }
 
             ArrayList<ApiResult> messages = result.getNodes("/api/query/messagecollection/message");
             Log.d("TWN", "Actual result is" + Utils.getStringFromDOM(result.getDocument()));
 
-            // todo: this might be good place to do filtering if needed, such too long messages etc.
+            offset += messages.size(); //advance offset
 
-
+            String definition;
             for(ApiResult message: messages) {
+
+                definition =   message.getString("@definition");
+                if (definition.length()>MAX_LENGTH_FOR_MESSAGE) // skip over too long translations
+                    continue;
                 MessageAdapter m = new MessageAdapter(context,
                                                       message.getString("@key"),
                                                       message.getString("@title"),
                                                       CUR_PROJECT,
                                                       lang,
-                                                      message.getString("@definition"),
+                                                      definition,
                                                       message.getString("@translation"),
                                                       message.getString("@revision"),
                                                       message.getNodes("properties/reviewers").size(),
                                                       msgState);
 
                     messagesList.add(m);
-
-                //get suggestionsAdapter for this message
-                if (m.getmState() == 2){  // iff non-translated message
-                    new FetchHelpersTask(m).execute(null);
-                }
             }
             return messagesList;
         }
@@ -140,21 +154,33 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         @Override
         protected void onPostExecute(ArrayList<MessageAdapter> result) {
             super.onPostExecute(result);
-
-            //prepare SQL db for query
-            RejectedMessagesDbHelper mDbHelper = new RejectedMessagesDbHelper(context);
-
-            for(MessageAdapter m : result) { // add new messages to our data store.
-
-                // query rejected msgs database
-                Cursor c = mDbHelper.queryRevision(m.getRevision());
-
-                if (c.getCount()==0){     // iff not found as rejected
-
-                    translations.add(m);
+            if (result!= null  && result.size()>0)
+            {
+                //prepare SQL db for query
+                if (mDbHelper==null){
+                    mDbHelper = new RejectedMessagesDbHelper(context);
                 }
 
-                offset++;
+                int count = 0;
+                for(MessageAdapter m : result) { // add new messages to our data store.
+
+                    // query rejected msgs database
+                    Cursor c = mDbHelper.queryRevision(m.getRevision());
+
+                    if (c.getCount()!=0)     // iff not found as rejected
+                        continue;
+
+                    translations.add(m);
+                    count++;
+
+                    //get suggestionsAdapter for this message
+                    if (m.getmState() == 2){  // iff non-translated message
+                        new FetchHelpersTask(m).execute(null);
+                    }
+                }
+                // completion fetch
+                if (count<limit)
+                    new FetchTranslationsTask(context,lang,limit-count,CURRENT_STATE).execute();
             }
         }
     }
@@ -162,7 +188,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     /**
      * Handles the task of reviewing (accepting) translated by others messages.
      */
-    private class ReviewTranslationTask extends AsyncTask<Void, Void, Boolean> {
+    private class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
 
         private Activity context;
         private MessageAdapter message;
@@ -182,7 +208,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         }
 
         @Override
-        protected Boolean doInBackground(Void... params) {
+        protected String doInBackground(Void... params) {
             try {
                 if(!app.getApi().validateLogin()) {
                     if(((TranslateWikiApp)app).revalidateAuthToken()) {
@@ -193,13 +219,24 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         throw new RuntimeException();
                     }
                 }
-                if(reviewToken == null) {
+                if(reviewToken == null || reviewToken.length()==0) {
                     ApiResult tokenResult;
                     tokenResult = app.getApi().action("tokens").param("type", "translationreview").post();
                     Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument()));
+
                     reviewToken = tokenResult.getString("/api/tokens/@translationreviewtoken");
                     Log.d("TWN", "Token is " + reviewToken);
+
+                    if (reviewToken==null ||reviewToken.length()==0)
+                    {
+                        String warning = tokenResult.getString("/api/warnings/tokens");
+                        warning = ((warning==null || warning.length()==0 ) ? "no token!" : warning);
+                        return warning;
+
+                    }
+
                 }
+
                 // send API request for review message
                 ApiResult reviewResult = app.getApi().action("translationreview")
                         .param("revision", message.getRevision())
@@ -209,15 +246,22 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                 e.printStackTrace();
                 throw new RuntimeException(e);
             }
-            return false;
+            return null;
         }
 
         @Override
-        protected void onPostExecute(Boolean result) {
-            super.onPostExecute(result);
-            // TODO: check indeed successful, we are lying meanwhile...
-            Toast successToast = Toast.makeText(context,message.getKey()+" accepted!", Toast.LENGTH_SHORT);
-            successToast.show();
+        protected void onPostExecute(String warning) {
+            super.onPostExecute(warning);
+            if (warning !=null)
+            {
+                Toast warningToast = Toast.makeText(context, warning , Toast.LENGTH_LONG);
+                warningToast.show();
+            }
+            else
+            {
+                Toast successToast = Toast.makeText(context,message.getKey()+" accepted!", Toast.LENGTH_SHORT);
+                successToast.show();
+            }
         }
     }
 
@@ -225,7 +269,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     /**
      * Handles the task of contributing new translation (edit) for a message.
      */
-    private class SubmitTranslationTask extends AsyncTask<Void, Void, Boolean> {
+    private class SubmitTranslationTask extends AsyncTask<Void, Void, String> {
 
         private Activity context;
         private MessageAdapter message;
@@ -245,7 +289,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         }
 
         @Override
-        protected Boolean doInBackground(Void... params) {
+        protected String doInBackground(Void... params) {
             try {
                 if(!app.getApi().validateLogin()) {
                     if(((TranslateWikiApp)app).revalidateAuthToken()) {
@@ -256,45 +300,68 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         throw new RuntimeException();
                     }
                 }
-                if(translateToken == null) {
+                if(translateToken == null || translateToken.length()==0)
+                {
                     ApiResult tokenResult;
                     tokenResult = app.getApi().action("tokens").param("type", "edit").post();
                     Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument()));
                     translateToken = tokenResult.getString("/api/tokens/@edittoken");
                     Log.d("TWN", "Token is " + translateToken);
+
+                    if (translateToken==null ||translateToken.length()==0)
+                    {
+                        String warning = tokenResult.getString("/api/warnings/tokens");
+                        warning = ((warning==null || warning.length()==0 ) ? "no token!" : warning);
+                        return warning;
+                    }
+
                 }
+
+
                 // send API request for review message
-                ApiResult reviewResult = app.getApi().action("edit")
+                ApiResult editResult = app.getApi().action("edit")
                         .param("title", message.getmTitle())
                         .param("text", message.savedInput)
                         .param("token", translateToken).post();
-                Log.d("TWN", Utils.getStringFromDOM(reviewResult.getDocument()));
+                Log.d("TWN", Utils.getStringFromDOM(editResult.getDocument()));
+
+                String error = editResult.getString("/api/error/@info");
+                if (error!=null && error.length()>0)
+                    return error;
             } catch (IOException e) {
                 e.printStackTrace();
                 throw new RuntimeException(e);
             }
-            return false;
+            return null;
         }
 
         @Override
-        protected void onPostExecute(Boolean result) {
-            super.onPostExecute(result);
-            // TODO: check indeed successful, we are lying meanwhile...
-            Toast successToast = Toast.makeText(context, "committed!", Toast.LENGTH_SHORT);
-            successToast.show();
+        protected void onPostExecute(String warning) {
+            super.onPostExecute(warning);
+            if (warning!=null)
+            {
+                Toast warningToast = Toast.makeText(context, warning , Toast.LENGTH_LONG);
+                warningToast.show();
+            }
+            else
+            {
+                // TODO: check indeed successful, we are lying meanwhile...
+                Toast successToast = Toast.makeText(context, "committed!", Toast.LENGTH_SHORT);
+                successToast.show();
 
-            new Thread() { //this allows the UI update the messagelist at the background.
-                public void run() {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // update messageList so the newly selected will be showed with buttons
-                            translations.notifyDataSetChanged();
-                            //m.suggestionsAdapter.notifyDataSetChanged();
-                        }
-                    });
-                }
-            }.start();
+                new Thread() { //this allows the UI update the messagelist at the background.
+                    public void run() {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // update messageList so the newly selected will be showed with buttons
+                                translations.notifyDataSetChanged();
+                                //m.suggestionsAdapter.notifyDataSetChanged();
+                            }
+                        });
+                    }
+                }.start();
+            }
         }
     }
 
@@ -318,7 +385,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
             try { // send API request
                 result = api.action("translationaids")
                         .param("title", m.getmTitle())
-                        .param("group", m.getmGrupe())            // project TODO: dont use hard-coded
+                        .param("group", m.getmGrupe())                // project
                         .param("prop", "mt|ttmserver|documentation")  // info to get
                         .post();
             } catch (IOException e) {
@@ -326,31 +393,59 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                 return null;
             }
 
+            m.clearSuggestions();
+            int count = 0;
+
             // extracts suggestions
             ArrayList<ApiResult> packedSuggestions = result.getNodes("/api/helpers/mt/suggestion");
             Log.d("TWN", "Actual result is" + Utils.getStringFromDOM(result.getDocument()));
+
+            String s;
+            // insert suggestions with not longer than "MAX_LENGTH_FOR_SUGGESTION",
+            // (too long suggestion is empirically bad suggestion)
+            // but no more than "MAX_NO_SUGGESTIONS"
             for(ApiResult packedSuggestion: packedSuggestions)
             {
-                String s = packedSuggestion.getString("@target");
-                Log.d("TWN", "suggestion is" + s);
-                //m.suggestionsAdapter.add(s);
-                m.addSuggestion(s);
+                if (count<MAX_NO_SUGGESTIONS){
+                    s = packedSuggestion.getString("@target");
+                    if (s.length()>MAX_LENGTH_FOR_SUGGESTION)
+                        continue;
+
+                    Log.d("TWN", "suggestion is" + s);
+                    if(m.addSuggestion(s)) // this call also makes sure no to add duplicates
+                        count++;
+                } else break;
             }
 
-            // TODO: need to add here suggestions of "ttmserver"
-            // TODO: filter suggestions do not show more than {N} or longer than {L} suggestions
+            // insert suggestions with not longer than "MAX_LENGTH_FOR_SUGGESTION",
+            // with a quality of at least "MIN_QUALITY_FOR_SUGGESTION",
+            // but no more than "MAX_NO_SUGGESTIONS"
+            ArrayList<ApiResult> packedTtms = result.getNodes("/api/helpers/ttmserver/suggestion");
+            for(ApiResult packedSuggestion: packedTtms)
+            {
+                if (count<MAX_NO_SUGGESTIONS){
+                    if (packedSuggestion.getNumber("@quality") < MIN_QUALITY_FOR_SUGGESTION)
+                        continue;
+                    s = packedSuggestion.getString("@target");
+                    if (s.length()>MAX_LENGTH_FOR_SUGGESTION)
+                        continue;
+                    Log.d("TWN", "suggestion is" + s);
+                    if (m.addSuggestion(s)) // this call also makes sure no to add duplicates
+                        count++;
+                } else break;
+            }
 
             // extract documentation
-            String d = result.getNode("/api/helpers/documentation").getString("@html");
+            String doc = result.getNode("/api/helpers/documentation").getString("@html");
             // documentation is a helper which is shown by WebView,
             // since it is written in 'wiki' code, contains patterns etc.
 
-            d = d.split("<div class=\"mw-identical-title mw-collapsible mw-collapsed\">")[0];
+            doc = doc.split("<div class=\"mw-identical-title mw-collapsible mw-collapsed")[0];
             // some of the documentations include a collapsible tail which let the user see
             // similar usage examples. we are not interested in this tail, for now.
 
-            m.setDocumentation(d);
-
+            Log.d("TWN", "doc is: " + doc);
+            m.setDocumentation(doc);
             return null;
         }
 
@@ -392,6 +487,9 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
             super(context, textViewResourceId);
         }
 
+
+        // 'getViewTypeCount' and 'getItemViewType' help the ListAdapter to reuse objects
+        // and therefore save performance impact
         @Override
         public int getViewTypeCount (){
             return 4;
@@ -399,19 +497,15 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
         @Override
         public int getItemViewType (int position){
-
             if (position==getCount()-1)
-               return 3;
-
+               return 3;                            // 'more' button
             MessageAdapter m = getItem(position);
             if (m.getmState()==1)
-               return 0;
-
+               return 0;                            // proofread message
             if (m.isCommitted())
-               return 2;
+               return 2;                            // committed translation
             else
-               return 1;
-
+               return 1;                            // translation message
         }
 
         @Override
@@ -436,9 +530,10 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     // get all the relevant components
                     lblSourceText = (TextView) v.findViewById(R.id.lblSourceText);
                     TextView lblTranslatedText = (TextView) v.findViewById(R.id.lblTranslatedText);
-                    TextView lblAcceptText = (TextView) v.findViewById(R.id.lblAcceptText);
-                    Button btnReject = (Button) v.findViewById(R.id.btnReject);
-                    Button btnAccept = (Button) v.findViewById(R.id.btnAccept);
+                    TextView lblAcceptText     = (TextView) v.findViewById(R.id.lblAcceptText);
+                    View btnReject = v.findViewById(R.id.btnReject);
+                    View btnAccept = v.findViewById(R.id.btnAccept);
+                    View btnEdit   = v.findViewById(R.id.btnEdit);
 
                     // bind action for reject
                     btnReject.setOnClickListener(new View.OnClickListener() {
@@ -461,6 +556,16 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
                             // now remove from our list
                             translations.remove(m);
+                        }
+                    });
+
+                    // bind action for edit
+                    btnEdit.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            m.setmState(2);
+                            translations.notifyDataSetChanged();
+                            new FetchHelpersTask(m).execute(null);
                         }
                     });
 
@@ -503,8 +608,37 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
                 case 1:     // translation view
                     m = this.getItem(position);
-                    v = convertView==null ? getLayoutInflater().inflate(R.layout.listitem_translation, parent,false)
-                            : convertView;
+                    WebView infoWebView;
+                    final ViewFlipper viewFlipper;
+                    if (convertView==null)
+                    {
+                        v= getLayoutInflater().inflate(R.layout.listitem_translation, parent,false);
+                        ViewGroup infoLayout = (ViewGroup) v.findViewById(R.id.infoLayout);
+                        infoWebView = new WebView(getContext());
+                        infoWebView.setWebViewClient(new WebViewClient(){
+                            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                                return true;
+                            }
+                        });
+                        viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
+                        infoWebView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));//viewFlipper.getHeight()));
+                        infoWebView.setBackgroundColor(0);
+                        infoWebView.setVerticalScrollBarEnabled(true);
+                        WebSettings ws= infoWebView.getSettings();
+                        ws.setTextSize(WebSettings.TextSize.SMALLER);
+                        infoLayout.addView(infoWebView);
+
+                        Animation animationFlipIn  = AnimationUtils.loadAnimation(getContext(), R.anim.flipin);
+                        Animation animationFlipOut = AnimationUtils.loadAnimation(getContext(), R.anim.flipout);
+                        viewFlipper.setInAnimation(animationFlipIn);
+                        viewFlipper.setOutAnimation(animationFlipOut);
+
+                    }
+                    else {
+                        v = convertView;
+                        infoWebView = (WebView)((ViewGroup)v.findViewById(R.id.infoLayout)).getChildAt(0);
+                        viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
+                    }
 
                     lblSourceText = (TextView) v.findViewById(R.id.lblSourceText); // TODO: remove code duplication
                     lblSourceText.setText(m.getDefinition());                     // TODO: also here
@@ -513,16 +647,10 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     suglistView.setAdapter(m.suggestionsAdapter);
                     m.suggestionsAdapterView = suglistView;         // yes, we need it in order to update suggestions with better performance
 
-                    final ViewFlipper viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
 
                     if (viewFlipper.getCurrentView().getTag().equals("info") && !m.isInfoNeedShown()){
                         viewFlipper.showNext();
                     }
-
-                    Animation animationFlipIn  = AnimationUtils.loadAnimation(getContext(), R.anim.flipin);
-                    Animation animationFlipOut = AnimationUtils.loadAnimation(getContext(), R.anim.flipout);
-                    viewFlipper.setInAnimation(animationFlipIn);
-                    viewFlipper.setOutAnimation(animationFlipOut);
 
                     View infoBtn = v.findViewById(R.id.infoButton);
                     infoBtn.setVisibility(m.IsDocumentationExists() ? View.VISIBLE:View.GONE);
@@ -534,13 +662,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         }
                     });
 
-                    // prepare web view
-                    WebView wv = (WebView) v.findViewById(R.id.webView);
-                    wv.setBackgroundColor(0); //transparent
-                    wv.setFocusableInTouchMode(false);
-                    wv.setFocusable(false);
-                    wv.setVerticalScrollBarEnabled(true);
-                    wv.loadData(m.getDocumentation(), "text/html", null);  // load documentation on card
+                    infoWebView.loadData(m.getDocumentation(), "text/html; charset=UTF-8", null);  // load documentation on card
 
                     // set on click listener for suggestions
                     suglistView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -552,6 +674,44 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                             }
                         }
                     });
+
+                    View delBtn = v.findViewById(R.id.deleteButton);
+                    View canBtn = v.findViewById(R.id.cancelButton);
+
+                    if (CURRENT_STATE==1) // namely, we edit message on proofread mode
+                    {
+                        // activate cancel edit button
+                        delBtn.setVisibility(View.GONE);
+                        canBtn.setVisibility(View.VISIBLE);
+                        canBtn.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                m.setmState(1);
+                                translations.notifyDataSetChanged();
+                            }
+                        });
+                    }
+                    else {
+                        // activate discard message button
+                        canBtn.setVisibility(View.GONE);
+                        delBtn.setVisibility(View.VISIBLE);
+                        delBtn.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                translations.remove(m);
+                            }
+                        });
+                    }
+
+//                    LinearLayout suggestionsLayout = (LinearLayout) v.findViewById(R.id.suggestionsLayout);
+//                    LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) suggestionsLayout.getLayoutParams();
+
+//                    int x = 0;
+//                    for (int i=0; i<suglistView.getChildCount();i++ ){
+//                        i+= suglistView.getChildAt(i).getHeight();
+//                    }
+//                    params.height = x + 40;// suglistView.getCount()*lblSourceText.getHeight()-30;
+//                    suggestionsLayout.setLayoutParams(params);
 
                     break;
                 case 2:     // committed translation view
@@ -611,8 +771,20 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     // inflates a view for the input view
     public View getViewForInput(ViewGroup parent, final MessageAdapter m) {
         View v = layoutInflater.inflate(R.layout.listitem_input, parent, false);
+
         EditText et = (EditText) v.findViewById(R.id.editText);
-        et.setText(m.savedInput);
+        final Button sendBtn  = (Button) v.findViewById(R.id.sendBtn);
+        sendBtn.setOnClickListener(new sendButtonListener(this, m));
+
+        if (m.savedInput!=null && m.savedInput.length()>0){
+            et.setText(m.savedInput);
+            sendBtn.setEnabled(true);
+        }
+        else{
+            et.setText("");
+            sendBtn.setEnabled(false);
+        }
+
         et.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {}
@@ -621,11 +793,15 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
             @Override
             public void afterTextChanged(Editable editable) {
                 m.savedInput = editable.toString();
+                if (editable.toString().length()>0){
+                    sendBtn.setEnabled(true);
+                }
+                else{
+                    sendBtn.setEnabled(false);
+                }
             }
         });
 
-        Button sendBtn = (Button) v.findViewById(R.id.sendBtn);
-        sendBtn.setOnClickListener(new sendButtonListener(this, m));
 
 
         return v;
@@ -662,17 +838,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         TextView lblCommittedText = (TextView) view.findViewById(R.id.lblCommittedText); // TODO: remove code duplication
                         lblCommittedText.setText(((MessageAdapter)adapterView.getItemAtPosition(i)).savedInput);
 
-                        new Thread() { //this allows the UI update the messagelist at the background.
-                            public void run() {
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        // update messageList so the newly selected will be showed with buttons
-                                        translations.notifyDataSetChanged();
-                                    }
-                                });
-                            }
-                        }.start();
+                        translations.notifyDataSetChanged();
                     }
                     else if (view.getTag().equals("pr"))
                     {
@@ -747,7 +913,6 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                 return true;
             }
         });
-
 
         // TODO: also bind some real actions
 
