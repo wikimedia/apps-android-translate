@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<preference-headers xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <!-- These settings headers are only used on tablets. -->
+
+    <header
+        android:fragment="net.translatewiki.app.SettingsActivity$GeneralPreferenceFragment"
+        android:title="@string/pref_header_general" />
+
+    <!-- These settings headers are only used on tablets. -->
+
+    <header
+        android:fragment="net.translatewiki.app.SettingsActivity$GeneralPreferenceFragment"
+        android:title="@string/pref_header_general" />
+
+</preference-headers>

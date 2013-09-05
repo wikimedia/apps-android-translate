@@ -9,144 +9,137 @@
     android:background="@android:color/transparent">
 
 
-    <ViewFlipper
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/viewFlipper">
-
-        <LinearLayout
-                android:orientation="vertical"
+        <ViewFlipper
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="0dp"
-                android:layout_margin="0dp"
-                android:id="@+id/linearLayout"
-                android:background="@android:color/transparent"
-                android:tag = "input">
+                android:id="@+id/viewFlipper">
 
             <LinearLayout
-                    android:layout_width="fill_parent"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    >
-
-                <TextView
-                    android:id="@+id/lblSourceText"
-                    android:layout_width="0dp"
-                    android:layout_height="fill_parent"
-                    android:layout_alignParentRight="true"
-                    android:layout_centerHorizontal="true"
-                    android:padding="4dip"
-                    android:textAppearance="?android:attr/textAppearanceLarge"
-                    android:textColor="#565656"
-                    android:textSize="14dp"
-                    android:text="source text"
-                    android:gravity="left"
-                    android:layout_weight="9"/>
+                    android:padding="0dp"
+                    android:layout_margin="0dp"
+                    android:id="@+id/linearLayout"
+                    android:background="@android:color/transparent"
+                    android:tag = "input">
 
                 <LinearLayout
-                        android:orientation="vertical"
+                        android:layout_width="fill_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        >
+
+                    <TextView
+                        android:id="@+id/lblSourceText"
                         android:layout_width="0dp"
                         android:layout_height="fill_parent"
-                        android:measureWithLargestChild="true"
-                        android:layout_gravity="right|top"
-                        android:minWidth="35dp"
-                        android:gravity="right"
-                        android:layout_weight="1">
+                        android:layout_alignParentRight="true"
+                        android:layout_centerHorizontal="true"
+                        android:padding="4dip"
+                        android:textAppearance="?android:attr/textAppearanceLarge"
+                        android:textColor="#565656"
+                        android:textSize="14dp"
+                        android:text="source text"
+                        android:gravity="left"
+                        android:layout_weight="9"
+                        android:background="@android:color/transparent" />
 
-                    <FrameLayout
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
-                            android:layout_gravity="right"
-                            android:minWidth="30dp"
-                            android:minHeight="30dp"
-                            android:measureAllChildren="true">
-                    </FrameLayout>
+                    <LinearLayout
+                            android:orientation="vertical"
+                            android:layout_width="0dp"
+                            android:layout_height="fill_parent"
+                            android:measureWithLargestChild="true"
+                            android:layout_gravity="right|top"
+                            android:minWidth="35dp"
+                            android:gravity="right"
+                            android:layout_weight="1">
 
-                    <ImageButton
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
-                            android:id="@+id/deleteButton"
-                            android:layout_alignParentRight="true"
-                            android:src="@android:drawable/ic_menu_delete"
-                            android:background="@android:color/transparent"
-                            android:padding="0dp"
-                            android:layout_gravity="right"
-                            android:minWidth="30dp"/>
+                        <FrameLayout
+                                android:layout_width="30dp"
+                                android:layout_height="30dp"
+                                android:layout_gravity="right"
+                                android:minWidth="30dp"
+                                android:minHeight="30dp"
+                                android:measureAllChildren="true">
+                        </FrameLayout>
 
-                    <ImageButton
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
-                            android:layout_alignParentRight="true"
-                            android:src="@android:drawable/ic_menu_close_clear_cancel"
-                            android:background="@android:drawable/ic_menu_edit"
-                            android:padding="0dp"
-                            android:layout_gravity="right"
-                            android:minWidth="30dp"
-                            android:baselineAlignBottom="false"
-                            android:id="@+id/cancelButton"
-                            android:focusableInTouchMode="false"/>
+                        <ImageButton
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:id="@+id/deleteButton"
+                                android:layout_alignParentRight="true"
+                            android:background="@drawable/trash_new"
+                                android:padding="0dp"
+                                android:layout_gravity="right"
+                                android:minWidth="30dp"
+                            android:layout_marginTop="10dp"
+                            android:adjustViewBounds="true" />
+
+                        <ImageButton
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:layout_alignParentRight="true"
+                                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                android:background="@android:drawable/ic_menu_edit"
+                                android:padding="0dp"
+                                android:layout_gravity="right"
+                                android:minWidth="30dp"
+                                android:baselineAlignBottom="false"
+                                android:id="@+id/cancelButton"
+                                android:focusableInTouchMode="false"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="140dp"
+                        android:background="@drawable/new_frame_2"
+                        android:orientation="vertical"
+                        android:id="@id/suggestionsLayout">
+
+                    <ListView xmlns:android="http://schemas.android.com/apk/res/android"
+                              android:id="@+id/listSuggestions"
+                              android:layout_width="match_parent"
+                              android:layout_height="match_parent"
+                              android:animateLayoutChanges="true"
+                              android:divider="#aaaaaa"
+                              android:dividerHeight="1dp"
+                              android:background="#ffffff"
+                              android:focusable="false"
+                              android:layout_marginLeft="6dp"
+                              android:layout_marginTop="15dp"
+                              android:layout_marginRight="6dp"
+                              android:layout_marginBottom="8dp"
+                              android:fastScrollAlwaysVisible="false"/>
                 </LinearLayout>
 
             </LinearLayout>
 
             <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:background="@drawable/frame_2"
                     android:orientation="vertical"
-                    android:id="@id/suggestionsLayout">
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:background="@drawable/message_display"
+                    android:tag = "info"
+                    android:id="@id/infoLayout">
 
-                <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceSmall"
-                        android:text="Suggestions"
-                        android:id="@+id/textView"
-                        android:layout_marginTop="13dp"
-                        android:layout_alignParentTop="true"
-                        android:layout_alignParentLeft="true"
-                        android:textSize="10dp"
-                        android:layout_marginLeft="4dp"/>
-
-                <ListView xmlns:android="http://schemas.android.com/apk/res/android"
-                          android:id="@+id/listSuggestions"
-                          android:layout_width="match_parent"
-                          android:layout_height="match_parent"
-                          android:animateLayoutChanges="true"
-                          android:divider="@drawable/bg_striped_split_img"
-                          android:dividerHeight="1.0dp"
-                          android:background="#f8f8f8"
-                          android:focusable="false"
-                          android:layout_marginLeft="6dp"
-                          android:layout_marginTop="4dp"
-                          android:layout_marginRight="6dp"
-                          android:layout_marginBottom="8dp"
-                          android:fastScrollAlwaysVisible="false"/>
             </LinearLayout>
 
-        </LinearLayout>
+        </ViewFlipper>
 
-        <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent"
-                android:background="@drawable/message_display"
-                android:tag = "info"
-                android:id="@id/infoLayout">
-
-        </LinearLayout>
-
-    </ViewFlipper>
-
-    <ImageButton
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:id="@+id/infoButton"
-            android:layout_alignParentRight="true"
-            android:src="@android:drawable/ic_menu_info_details"
-            android:background="@android:color/transparent"
-            android:padding="0dp"
-            android:layout_margin="0dp"/>
+        <ImageButton
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:id="@+id/infoButton"
+                android:layout_alignParentRight="true"
+            android:background="@drawable/info_new"
+                android:padding="0dp"
+                android:layout_margin="0dp"
+            android:adjustViewBounds="true"
+            android:focusable="true"
+            android:cropToPadding="false"
+            android:alpha="0.85" />
 
 </RelativeLayout>

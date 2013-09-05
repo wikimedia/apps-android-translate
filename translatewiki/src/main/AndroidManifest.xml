@@ -5,7 +5,7 @@
     android:versionName="1.0" >
 
     <uses-sdk
-        android:minSdkVersion="8"
+        android:minSdkVersion="11"
         android:targetSdkVersion="16" />
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -15,49 +15,49 @@
     <uses-permission android:name="android.permission.MANAGE_ACCOUNTS" />
 
     <application
-        android:name=".TranslateWikiApp"
+        android:name="net.translatewiki.app.TranslateWikiApp"
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name"
         android:hardwareAccelerated="true"
+        android:icon="@drawable/ic_launcher"
+        android:logo="@drawable/ic_logo_small"
+        android:label="@string/app_name"
         android:theme="@style/AppBaseTheme" >
-
         <activity
-                android:name="org.mediawiki.auth.LoginActivity"
-                android:label="@string/title_activity_login"
-                android:theme="@style/NoTitle"
-                >
+            android:name="org.mediawiki.auth.LoginActivity"
+            android:label="@string/title_activity_login"
+            android:theme="@style/NoTitle" >
         </activity>
-
         <activity
-                android:name=".PreferenceActivity"
-                android:label="@string/settings_title"
-                >
-
+            android:name="net.translatewiki.app.PreferenceActivity"
+            android:label="@string/settings_title" >
         </activity>
-
         <activity
             android:name="net.translatewiki.app.MainActivity"
             android:label="@string/title_activity_main" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
         <service
-                android:name="org.mediawiki.auth.WikiAccountAuthenticatorService"
-                android:exported="true"
-                android:process=":auth" >
+            android:name="org.mediawiki.auth.WikiAccountAuthenticatorService"
+            android:exported="true"
+            android:process=":auth" >
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
 
             <meta-data
-                    android:name="android.accounts.AccountAuthenticator"
-                    android:resource="@xml/authenticator" />
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
         </service>
 
+        <activity
+            android:name="net.translatewiki.app.SettingsActivity"
+            android:label="@string/title_activity_settings" >
+        </activity>
     </application>
 
 </manifest>

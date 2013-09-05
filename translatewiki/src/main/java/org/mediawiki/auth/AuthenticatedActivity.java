@@ -13,6 +13,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 
 import com.actionbarsherlock.app.SherlockActivity;
+import com.actionbarsherlock.app.SherlockFragmentActivity;
 
 public class AuthenticatedActivity extends SherlockActivity {
     

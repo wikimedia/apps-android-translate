@@ -1,10 +1,9 @@
 package net.translatewiki.app;
 
-import android.app.ActionBar;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -12,10 +11,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.text.Editable;
-import android.text.Layout;
 import android.text.TextWatcher;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,7 +25,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -49,26 +45,31 @@ import java.util.ArrayList;
 public class MainActivity extends AuthenticatedActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     // hard-coded properties. TODO: change this
-    public static final String  CUR_PROJECT     = "!additions";
-    public static final Integer FETCH_SIZE      = 7;
-    public static final int     CURRENT_STATE   = 2;    // 1 - proofread    2 - translate
-    public static final String  CUR_LANG        = "he";
-    public static final int     MAX_LENGTH_FOR_MESSAGE     = 100;
+//    public static final int     CURRENT_STATE   = 1;    // 1 - proofread    2 - translate
+//    public static final String  CUR_LANG        = "he";
+//    public static final String  CUR_PROJECT     = "!additions";
+//    public static final Integer FETCH_SIZE      = 5;
+//    public static final int     MAX_LENGTH_FOR_MESSAGE     = 100;
     public static final int     MAX_LENGTH_FOR_SUGGESTION  = 100;
     public static final int     MAX_NO_SUGGESTIONS         = 3;
     public static final Double  MIN_QUALITY_FOR_SUGGESTION = 0.9;
 
+    // global properties:
+    public static int       CURRENT_STATE   = 1;    // 1 - proofread    2 - translate
+    public static String    CUR_LANG        = "he";
+    public static String    CUR_PROJECT     = "!additions";
+    public static Integer   FETCH_SIZE      = 6;
+    public static int       MAX_LENGTH_FOR_MESSAGE = 100;
 
-    private String reviewToken = null;
-    private String translateToken = null;
     public static RejectedMessagesDbHelper mDbHelper;  //database helper for rejected messages
 
-    private Message curMessage;
     private static MessageListAdapter translations; // serve as a data controller for the messages
-    private int selected;
     private static Integer offset = 0;       // the offset index to fetch from server
     private static LayoutInflater layoutInflater;
 
+    private int selected;
+    private String reviewToken = null;
+    private String translateToken = null;
     private ListView msgListView;
 
     /**
@@ -82,7 +83,6 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         private Integer limit;
         private int msgState;            // 1 - proofread (translated)  2 - translate (untranslated)
 
-        // CTOR
         public FetchTranslationsTask(Activity context, String lang, Integer limit, int state) {
             this.context = context;
             this.lang = lang;
@@ -107,7 +107,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                 String userId = api.getUserID();
                 result = api.action("query")
                         .param("list", "messagecollection")
-                        .param("mcgroup", CUR_PROJECT)            // project TODO: dont use hard-coded
+                        .param("mcgroup", CUR_PROJECT=="!recent" && CURRENT_STATE==2 ? "!additions" : CUR_PROJECT) // project
                         .param("mclanguage", lang)              // language
                         .param("mclimit", limit.toString()) // number of messages to fetch
                         .param("mcoffset", offset.toString())   // index Offset
@@ -175,7 +175,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
                     //get suggestionsAdapter for this message
                     if (m.getmState() == 2){  // iff non-translated message
-                        new FetchHelpersTask(m).execute(null);
+                        new FetchHelpersTask(m).execute();
                     }
                 }
                 // completion fetch
@@ -528,6 +528,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                                           : convertView;
 
                     // get all the relevant components
+                    assert v != null;
                     lblSourceText = (TextView) v.findViewById(R.id.lblSourceText);
                     TextView lblTranslatedText = (TextView) v.findViewById(R.id.lblTranslatedText);
                     TextView lblAcceptText     = (TextView) v.findViewById(R.id.lblAcceptText);
@@ -565,7 +566,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         public void onClick(View v) {
                             m.setmState(2);
                             translations.notifyDataSetChanged();
-                            new FetchHelpersTask(m).execute(null);
+                            new FetchHelpersTask(m).execute();
                         }
                     });
 
@@ -598,12 +599,11 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
                     // show accept/reject only for selected cell.
                     View ol =  v.findViewById(R.id.optionsLayout);
-                    if(position==selected){
-                        ol.setVisibility(View.VISIBLE);
-                    }else{
-                        ol.setVisibility(View.GONE);
-                    }
-
+                    if (ol!=null)
+                        ol.setVisibility( position==selected ? View.VISIBLE : View.GONE);
+                    ol =  v.findViewById(R.id.btnEdit);
+                    if (ol!=null)
+                        ol.setVisibility( position==selected ? View.VISIBLE : View.GONE);
                     break;
 
                 case 1:     // translation view
@@ -612,7 +612,8 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     final ViewFlipper viewFlipper;
                     if (convertView==null)
                     {
-                        v= getLayoutInflater().inflate(R.layout.listitem_translation, parent,false);
+                        v = getLayoutInflater().inflate(R.layout.listitem_translation, parent,false);
+                        assert v != null;
                         ViewGroup infoLayout = (ViewGroup) v.findViewById(R.id.infoLayout);
                         infoWebView = new WebView(getContext());
                         infoWebView.setWebViewClient(new WebViewClient(){
@@ -627,6 +628,8 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         WebSettings ws= infoWebView.getSettings();
                         ws.setTextSize(WebSettings.TextSize.SMALLER);
                         infoLayout.addView(infoWebView);
+
+
 
                         Animation animationFlipIn  = AnimationUtils.loadAnimation(getContext(), R.anim.flipin);
                         Animation animationFlipOut = AnimationUtils.loadAnimation(getContext(), R.anim.flipout);
@@ -720,6 +723,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     v = convertView==null ? getLayoutInflater().inflate(R.layout.listitem_committed, parent,false)
                             : convertView;
 
+                    assert v != null;
                     TextView lblCommittedText = (TextView) v.findViewById(R.id.lblCommittedText); // TODO: remove code duplication
                     lblCommittedText.setText(m.savedInput);
 
@@ -742,15 +746,15 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     }
 
     private void refreshTranslations() { // exactly as "fetchTranslations", but clear first
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        CUR_LANG    = sharedPref.getString(getString(R.string.langugage_key), CUR_LANG);
+        CUR_PROJECT = sharedPref.getString(getString(R.string.projects_key), CUR_PROJECT);
+        FETCH_SIZE  = sharedPref.getInt(getString(R.string.fetch_size_key), FETCH_SIZE);
+        MAX_LENGTH_FOR_MESSAGE = sharedPref.getInt(getString(R.string.max_length_for_message_key), MAX_LENGTH_FOR_MESSAGE);
         offset = 0;
         translations.clear();
         fetchTranslations();
     }
-
-    void showMessage(Message message) {
-        curMessage = message;
-    }
-
 
     public class sendButtonListener implements View.OnClickListener {
 
@@ -772,6 +776,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     public View getViewForInput(ViewGroup parent, final MessageAdapter m) {
         View v = layoutInflater.inflate(R.layout.listitem_input, parent, false);
 
+        assert v != null;
         EditText et = (EditText) v.findViewById(R.id.editText);
         final Button sendBtn  = (Button) v.findViewById(R.id.sendBtn);
         sendBtn.setOnClickListener(new sendButtonListener(this, m));
@@ -818,6 +823,10 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         msgListView = (ListView) findViewById(net.translatewiki.app.R.id.listTranslations);
         msgListView.setAdapter(translations);
 
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        CURRENT_STATE   = sharedPref.getInt(getString(R.string.state_key), CURRENT_STATE);
+        setTitle(CURRENT_STATE==1 ? "Proofread" : "Translate");
+
         // bind action when clicking on cells
         msgListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -835,6 +844,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         ((MessageAdapter)adapterView.getItemAtPosition(i)).setCommitted(false);   // because we move to edit mode
                         view = getLayoutInflater().inflate(R.layout.listitem_committed, adapterView,false);
 
+                        assert view != null;
                         TextView lblCommittedText = (TextView) view.findViewById(R.id.lblCommittedText); // TODO: remove code duplication
                         lblCommittedText.setText(((MessageAdapter)adapterView.getItemAtPosition(i)).savedInput);
 
@@ -853,6 +863,9 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                                 ol =  previous.findViewById(R.id.optionsLayout);
                                 if (ol!=null)
                                     ol.setVisibility(View.GONE);
+                                ol =  previous.findViewById(R.id.btnEdit);
+                                if (ol!=null)
+                                    ol.setVisibility(View.GONE);
                             }
                         }
 
@@ -860,6 +873,9 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
                         // show accept/reject only for selected cell.
                         ol =  view.findViewById(R.id.optionsLayout);
+                        if (ol!=null)
+                            ol.setVisibility(selected==i ? View.VISIBLE : View.GONE);
+                        ol =  view.findViewById(R.id.btnEdit);
                         if (ol!=null)
                             ol.setVisibility(selected==i ? View.VISIBLE : View.GONE);
                     }
@@ -894,34 +910,63 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         //Used to put icons on action bar
+
+        // Inflate the menu items for use in the action bar
+        com.actionbarsherlock.view.MenuInflater inflater = getSupportMenuInflater();
+        inflater.inflate(R.menu.main, menu);
+
         boolean isLight = SampleList.THEME == com.actionbarsherlock.R.style.Theme_Sherlock_Light;
 
         MenuItem searchMenuItem = menu.add("Search");
         searchMenuItem.setIcon(isLight ? R.drawable.ic_search_inverse : R.drawable.ic_search)
                       .setActionView(R.layout.collapsible_edittext)
                       .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
+//
+//        MenuItem refreshMenuItem = menu.add("Refresh");
+//        refreshMenuItem.setIcon(isLight ? R.drawable.ic_refresh_inverse : R.drawable.ic_refresh)
+//                       .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
+//        refreshMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+//            @Override
+//            public boolean onMenuItemClick(MenuItem menuItem) {
+//                Toast refreshToast = Toast.makeText(getApplicationContext(), "Refresh", Toast.LENGTH_SHORT);
+//                refreshToast.show();
+//                translations.notifyDataSetChanged();
+//                return true;
+//            }
+//        });
 
-        MenuItem refreshMenuItem = menu.add("Refresh");
-        refreshMenuItem.setIcon(isLight ? R.drawable.ic_refresh_inverse : R.drawable.ic_refresh)
-                       .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
-        refreshMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem menuItem) {
-                Toast refreshToast = Toast.makeText(getApplicationContext(), "Refresh", Toast.LENGTH_SHORT);
-                refreshToast.show();
-                translations.notifyDataSetChanged();
-                return true;
-            }
-        });
-
-        // TODO: also bind some real actions
-
-        return true;
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(com.actionbarsherlock.view.MenuItem item)
     {
-            return true;
+        switch (item.getItemId()){
+            case R.id.action_proofread:
+                if (CURRENT_STATE!=1){
+                    setTitle("Proofread");
+                    CURRENT_STATE = 1;
+                    refreshTranslations();
+                    SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+                    sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE);
+                    sharedPrefEditor.commit();
+                } else return false;
+                break;
+            case R.id.action_translate:
+                if (CURRENT_STATE!=2){
+                    setTitle("Translate");
+                    CURRENT_STATE = 2;
+                    refreshTranslations();
+                    SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+                    sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE);
+                    sharedPrefEditor.commit();
+                } else return false;
+                break;
+            case R.id.action_settings:
+                Intent intent =  new Intent(this,SettingsActivity.class);
+                startActivity(intent);
+                break;
+        }
+        return true;
     }
 }

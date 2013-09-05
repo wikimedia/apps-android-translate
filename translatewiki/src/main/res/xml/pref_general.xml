@@ -1,0 +1,39 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+    <!-- NOTE: Hide buttons to simplify the UI. Users can touch outside the dialog to
+         dismiss it. -->
+    <!-- NOTE: ListPreference's summary should be set to its value by the activity code. -->
+    <net.translatewiki.app.LanguageSearchableListPreference
+            android:dialogLayout="@layout/searchable_list_preference"
+            android:dialogTitle="Language"
+            android:key="@string/langugage_key"
+            android:title="Language"
+            android:summary="Translation language"
+            android:defaultValue="he" />
+
+    <net.translatewiki.app.ProjectSearchableListPreference
+            android:dialogLayout="@layout/searchable_list_preference"
+            android:dialogTitle="Project"
+            android:key="@string/projects_key"
+            android:title="Project"
+            android:summary="Project to contribute"
+            android:defaultValue="!recent" />
+
+   <net.translatewiki.app.FetchNumberPickerPreference
+           android:dialogLayout="@layout/number_picker"
+           android:dialogTitle="Fetch Size"
+           android:key="fetch_size"
+           android:title="Fetch size"
+           android:summary="The number of messages to fetch each time"
+           android:defaultValue="10" />
+
+    <net.translatewiki.app.MaxLenNumberPickerPreference
+            android:dialogLayout="@layout/number_picker"
+            android:dialogTitle="Maximum Message Length"
+            android:key="max_msg_length"
+            android:title="Maximum message length"
+            android:summary="The maximal length of message to be shown"
+            android:defaultValue="100" />
+
+</PreferenceScreen>

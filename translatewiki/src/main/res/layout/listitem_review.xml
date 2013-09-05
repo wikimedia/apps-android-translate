@@ -10,32 +10,39 @@
     android:background="@drawable/message_display">
 
 
-    <TextView
-        android:id="@+id/lblSourceText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:gravity="center_horizontal"
-        android:padding="4dip"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:textColor="#565656"
-        android:textSize="12sp"
-        android:text="source text"/>
-
-    <ImageView
-        android:id="@+id/dividerSourceTranslate"
+    <LinearLayout
         android:layout_width="fill_parent"
-        android:layout_height="2dp"
-        android:paddingBottom="0dp"
-        android:paddingLeft="0dp"
-        android:paddingRight="0dp"
-        android:paddingTop="0dp"
-        android:scaleType="fitXY"
-        android:layout_below="@id/lblSourceText"
-        android:src="@android:drawable/divider_horizontal_bright" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/lblSourceText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:padding="4dip"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:textColor="#565656"
+            android:textSize="12sp"
+            android:text="source text"
+            android:layout_weight="9" />
+
+        <ImageButton
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:id="@+id/btnEdit"
+                android:src="@drawable/edit_new"
+                android:background="@android:color/transparent"
+                android:scaleType="centerCrop"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@+id/imageView"
+            android:layout_gravity="right|top"
+             />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/lblTranslatedText"
@@ -43,7 +50,6 @@
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
-        android:layout_below="@id/dividerSourceTranslate"
         android:gravity="center_horizontal"
         android:padding="4dip"
         android:textAppearance="?android:attr/textAppearanceLarge"
@@ -63,21 +69,24 @@
         android:layout_below="@id/lblTranslatedText"
         android:layout_marginLeft="0dp"
         android:layout_marginRight="0dp"
-        android:background="@drawable/message_display">
+        android:background="@drawable/control_display">
 
-        <Button
+        <ImageButton
             android:id="@+id/btnAccept"
             android:layout_width="@dimen/btn_size"
             android:layout_height="@dimen/btn_size"
             android:layout_weight="1"
-            android:background="@drawable/accept"
+            android:background="@android:color/transparent"
             android:gravity="center|fill_horizontal"
             android:width="@dimen/btn_size"
             android:height="@dimen/btn_size"
             android:layout_alignWithParentIfMissing="false"
-            android:layout_marginLeft="60dp"
             android:layout_centerVertical="true"
-            android:layout_marginTop="6dp"/>
+            android:layout_marginTop="6dp"
+            android:src="@drawable/accept_new"
+            android:layout_alignParentLeft="true"
+            android:layout_toLeftOf="@+id/imageView"
+            android:layout_marginRight="5dp" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -86,16 +95,17 @@
             android:text="0"
             android:id="@+id/lblAcceptText"
             android:textStyle="bold"
-            android:textColor="#5db72e"
+            android:textColor="#777777"
             android:textSize="16dp"
             android:padding="0dp"
-            android:layout_marginLeft="80dp"
-            android:layout_marginTop="16dp"/>
+            android:layout_marginRight="50dp"
+            android:layout_alignBottom="@+id/btnAccept"
+            android:layout_alignRight="@+id/btnAccept" />
 
         <ImageView
                 android:id="@+id/imageView"
                 android:layout_width="2dp"
-                android:layout_height="40dp"
+                android:layout_height="34dp"
                 android:paddingBottom="0dp"
                 android:paddingLeft="16dp"
                 android:paddingRight="16dp"
@@ -107,43 +117,21 @@
                 android:layout_centerHorizontal="true"/>
 
         <ImageButton
-                style="?android:attr/buttonStyleSmall"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:id="@+id/btnEdit"
-                android:src="@android:drawable/ic_menu_edit"
-                android:background="@android:color/transparent"
-                android:scaleType="centerCrop"
-                android:layout_centerVertical="true"
-                android:layout_toRightOf="@+id/imageView"/>
-
-        <ImageView
-                android:id="@+id/imageView2"
-                android:layout_width="2dp"
-                android:layout_height="40dp"
-                android:paddingBottom="0dp"
-                android:paddingLeft="16dp"
-                android:paddingRight="16dp"
-                android:paddingTop="0dp"
-                android:scaleType="fitXY"
-                android:src="@android:drawable/divider_horizontal_bright"
-                android:padding="0dp"
-                android:layout_alignParentTop="true"
-                android:layout_toRightOf="@+id/btnEdit"/>
-
-        <Button
             android:id="@+id/btnReject"
             android:layout_width="@dimen/btn_size"
             android:layout_height="@dimen/btn_size"
             android:layout_weight="1"
-            android:background="@drawable/reject"
             android:gravity="right"
             android:width="@dimen/btn_size"
             android:height="@dimen/btn_size"
             android:layout_gravity="right"
-            android:layout_marginRight="60dp"
+            android:layout_marginTop="6dp"
             android:layout_alignParentRight="true"
-            android:layout_marginTop="6dp"/>
+            android:layout_marginRight="0dp"
+            android:src="@drawable/reject_new"
+            android:background="@android:color/transparent"
+            android:layout_toRightOf="@+id/imageView"
+            android:layout_marginLeft="5dp" />
 
     </RelativeLayout>
 
