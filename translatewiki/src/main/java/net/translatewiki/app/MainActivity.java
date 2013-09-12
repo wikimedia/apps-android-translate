@@ -1,23 +1,24 @@
 package net.translatewiki.app;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.text.Editable;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -34,478 +35,90 @@ import com.actionbarsherlock.sample.demos.SampleList;
 import com.actionbarsherlock.view.Menu;
 import com.actionbarsherlock.view.MenuItem;
 
-import org.mediawiki.api.ApiResult;
-import org.mediawiki.api.MWApi;
 import org.mediawiki.auth.AuthenticatedActivity;
+import org.mediawiki.auth.LoginActivity;
+import org.mediawiki.auth.MWApiApplication;
 import org.mediawiki.auth.Utils;
 
-import java.io.IOException;
-import java.util.ArrayList;
+public class MainActivity extends AuthenticatedActivity {
 
-public class MainActivity extends AuthenticatedActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
-
-    // hard-coded properties. TODO: change this
-//    public static final int     CURRENT_STATE   = 1;    // 1 - proofread    2 - translate
-//    public static final String  CUR_LANG        = "he";
-//    public static final String  CUR_PROJECT     = "!additions";
-//    public static final Integer FETCH_SIZE      = 5;
-//    public static final int     MAX_LENGTH_FOR_MESSAGE     = 100;
+    // hard-coded properties.
     public static final int     MAX_LENGTH_FOR_SUGGESTION  = 100;
     public static final int     MAX_NO_SUGGESTIONS         = 3;
     public static final Double  MIN_QUALITY_FOR_SUGGESTION = 0.9;
 
     // global properties:
     public static int       CURRENT_STATE   = 1;    // 1 - proofread    2 - translate
-    public static String    CUR_LANG        = "he";
-    public static String    CUR_PROJECT     = "!additions";
+    public static String    CUR_LANG        = "en";
+    public static String    CUR_PROJECT     = "!recent";
     public static Integer   FETCH_SIZE      = 6;
     public static int       MAX_LENGTH_FOR_MESSAGE = 100;
 
     public static RejectedMessagesDbHelper mDbHelper;  //database helper for rejected messages
 
-    private static MessageListAdapter translations; // serve as a data controller for the messages
-    private static Integer offset = 0;       // the offset index to fetch from server
-    private static LayoutInflater layoutInflater;
+    public static MessageListAdapter translations; // serve as a data controller for the messages
+    public static Integer offset = 0;       // the offset index to fetch from server
+    public static LayoutInflater layoutInflater;
 
     private int selected;
-    private String reviewToken = null;
-    private String translateToken = null;
-    private ListView msgListView;
+    public static String reviewToken = null;
+    public static String translateToken = null;
+    public static ListView msgListView;
+    private static Intent staticIntent = null;
 
-    /**
-     * Handles the task of getting messages (translated fo proofread or else for translation),
-     * filtering and storing to MessageListAdapter
-     */
-    private class FetchTranslationsTask extends AsyncTask<Void, Void, ArrayList<MessageAdapter>> {
 
-        private Activity context;
-        private String lang;
-        private Integer limit;
-        private int msgState;            // 1 - proofread (translated)  2 - translate (untranslated)
+    public MWApiApplication getApp(){
+        return app;
+    }
 
-        public FetchTranslationsTask(Activity context, String lang, Integer limit, int state) {
-            this.context = context;
-            this.lang = lang;
-            this.limit = limit;
-            this.msgState = state;
-        }
+    public static Intent getStaticIntent() {
+        return staticIntent;
+    }
 
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            // indicate the fetch starts
-            Toast toast =  Toast.makeText(context,"Loading!", Toast.LENGTH_LONG);
-            toast.show();
-        }
-
-        @Override
-        protected ArrayList<MessageAdapter> doInBackground(Void... params) {
-            MWApi api = app.getApi();
-            ArrayList<MessageAdapter> messagesList = new ArrayList<MessageAdapter>();
-            ApiResult result;
-            try { // send API request
-                String userId = api.getUserID();
-                result = api.action("query")
-                        .param("list", "messagecollection")
-                        .param("mcgroup", CUR_PROJECT=="!recent" && CURRENT_STATE==2 ? "!additions" : CUR_PROJECT) // project
-                        .param("mclanguage", lang)              // language
-                        .param("mclimit", limit.toString()) // number of messages to fetch
-                        .param("mcoffset", offset.toString())   // index Offset
-                        .param("mcprop", "definition|translation|revision|properties")  // info to get
-                        .param("mcfilter", msgState == 1           // different filter for translated/untranslated
-                                ? "!last-translator:" + userId + "|!reviewer:" + userId + "|!ignored|translated"
-                                : "!ignored|!translated|!fuzzy")
-                        .post();
-            } catch (IOException e) {
-                e.printStackTrace();
-                Toast toast =  Toast.makeText(context,"Load Fail", Toast.LENGTH_LONG);
-                toast.show();
-                this.cancel(true);
-                return null;
-            }
-
-            ArrayList<ApiResult> messages = result.getNodes("/api/query/messagecollection/message");
-            Log.d("TWN", "Actual result is" + Utils.getStringFromDOM(result.getDocument()));
-
-            offset += messages.size(); //advance offset
-
-            String definition;
-            for(ApiResult message: messages) {
-
-                definition =   message.getString("@definition");
-                if (definition.length()>MAX_LENGTH_FOR_MESSAGE) // skip over too long translations
-                    continue;
-                MessageAdapter m = new MessageAdapter(context,
-                                                      message.getString("@key"),
-                                                      message.getString("@title"),
-                                                      CUR_PROJECT,
-                                                      lang,
-                                                      definition,
-                                                      message.getString("@translation"),
-                                                      message.getString("@revision"),
-                                                      message.getNodes("properties/reviewers").size(),
-                                                      msgState);
-
-                    messagesList.add(m);
-            }
-            return messagesList;
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList<MessageAdapter> result) {
-            super.onPostExecute(result);
-            if (result!= null  && result.size()>0)
-            {
-                //prepare SQL db for query
-                if (mDbHelper==null){
-                    mDbHelper = new RejectedMessagesDbHelper(context);
-                }
-
-                int count = 0;
-                for(MessageAdapter m : result) { // add new messages to our data store.
-
-                    // query rejected msgs database
-                    Cursor c = mDbHelper.queryRevision(m.getRevision());
-
-                    if (c.getCount()!=0)     // iff not found as rejected
-                        continue;
-
-                    translations.add(m);
-                    count++;
-
-                    //get suggestionsAdapter for this message
-                    if (m.getmState() == 2){  // iff non-translated message
-                        new FetchHelpersTask(m).execute();
-                    }
-                }
-                // completion fetch
-                if (count<limit)
-                    new FetchTranslationsTask(context,lang,limit-count,CURRENT_STATE).execute();
-            }
+    public void postFetchHelpers(MessageAdapter m){
+        int mPosition = MainActivity.translations.getPosition(m);
+        int minPos = MainActivity.msgListView.getFirstVisiblePosition();
+        int maxPos = MainActivity.msgListView.getLastVisiblePosition();
+        if (mPosition>=minPos && mPosition<=maxPos)
+        {
+            notifyTranslationsOnNewThread();
         }
     }
 
-    /**
-     * Handles the task of reviewing (accepting) translated by others messages.
-     */
-    private class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
-
-        private Activity context;
-        private MessageAdapter message;
-
-        // CTOR
-        public ReviewTranslationTask(Activity context, MessageAdapter message) {
-            this.context = context;
-            this.message = message;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            translations.remove(message); //accepted message will no longer be showed
-            Toast successToast = Toast.makeText(context,message.getKey()+" accepting...", Toast.LENGTH_SHORT);
-            successToast.show();
-        }
-
-        @Override
-        protected String doInBackground(Void... params) {
-            try {
-                if(!app.getApi().validateLogin()) {
-                    if(((TranslateWikiApp)app).revalidateAuthToken()) {
-                        // Validated!
-                        Log.d("TWN", "VALIDATED!");
-                    } else {
-                        Log.d("TWN", "Invalid :(");
-                        throw new RuntimeException();
-                    }
-                }
-                if(reviewToken == null || reviewToken.length()==0) {
-                    ApiResult tokenResult;
-                    tokenResult = app.getApi().action("tokens").param("type", "translationreview").post();
-                    Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument()));
-
-                    reviewToken = tokenResult.getString("/api/tokens/@translationreviewtoken");
-                    Log.d("TWN", "Token is " + reviewToken);
-
-                    if (reviewToken==null ||reviewToken.length()==0)
-                    {
-                        String warning = tokenResult.getString("/api/warnings/tokens");
-                        warning = ((warning==null || warning.length()==0 ) ? "no token!" : warning);
-                        return warning;
-
-                    }
-
-                }
-
-                // send API request for review message
-                ApiResult reviewResult = app.getApi().action("translationreview")
-                        .param("revision", message.getRevision())
-                        .param("token", reviewToken).post();
-                Log.d("TWN", Utils.getStringFromDOM(reviewResult.getDocument()));
-            } catch (IOException e) {
-                e.printStackTrace();
-                throw new RuntimeException(e);
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(String warning) {
-            super.onPostExecute(warning);
-            if (warning !=null)
-            {
-                Toast warningToast = Toast.makeText(context, warning , Toast.LENGTH_LONG);
-                warningToast.show();
-            }
-            else
-            {
-                Toast successToast = Toast.makeText(context,message.getKey()+" accepted!", Toast.LENGTH_SHORT);
-                successToast.show();
-            }
-        }
-    }
-
-
-    /**
-     * Handles the task of contributing new translation (edit) for a message.
-     */
-    private class SubmitTranslationTask extends AsyncTask<Void, Void, String> {
-
-        private Activity context;
-        private MessageAdapter message;
-
-        // CTOR
-        public SubmitTranslationTask(Activity context, MessageAdapter message) {
-            this.context = context;
-            this.message = message;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            message.setCommitted(true);
-            Toast successToast = Toast.makeText(context,"committing "+message.getRevision(), Toast.LENGTH_SHORT);
-            successToast.show();
-        }
-
-        @Override
-        protected String doInBackground(Void... params) {
-            try {
-                if(!app.getApi().validateLogin()) {
-                    if(((TranslateWikiApp)app).revalidateAuthToken()) {
-                        // Validated!
-                        Log.d("TWN", "VALIDATED!");
-                    } else {
-                        Log.d("TWN", "Invalid :(");
-                        throw new RuntimeException();
-                    }
-                }
-                if(translateToken == null || translateToken.length()==0)
-                {
-                    ApiResult tokenResult;
-                    tokenResult = app.getApi().action("tokens").param("type", "edit").post();
-                    Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument()));
-                    translateToken = tokenResult.getString("/api/tokens/@edittoken");
-                    Log.d("TWN", "Token is " + translateToken);
-
-                    if (translateToken==null ||translateToken.length()==0)
-                    {
-                        String warning = tokenResult.getString("/api/warnings/tokens");
-                        warning = ((warning==null || warning.length()==0 ) ? "no token!" : warning);
-                        return warning;
-                    }
-
-                }
-
-
-                // send API request for review message
-                ApiResult editResult = app.getApi().action("edit")
-                        .param("title", message.getmTitle())
-                        .param("text", message.savedInput)
-                        .param("token", translateToken).post();
-                Log.d("TWN", Utils.getStringFromDOM(editResult.getDocument()));
-
-                String error = editResult.getString("/api/error/@info");
-                if (error!=null && error.length()>0)
-                    return error;
-            } catch (IOException e) {
-                e.printStackTrace();
-                throw new RuntimeException(e);
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(String warning) {
-            super.onPostExecute(warning);
-            if (warning!=null)
-            {
-                Toast warningToast = Toast.makeText(context, warning , Toast.LENGTH_LONG);
-                warningToast.show();
-            }
-            else
-            {
-                // TODO: check indeed successful, we are lying meanwhile...
-                Toast successToast = Toast.makeText(context, "committed!", Toast.LENGTH_SHORT);
-                successToast.show();
-
-                new Thread() { //this allows the UI update the messagelist at the background.
+    public void notifyTranslationsOnNewThread(){
+        new Thread() { //this allows the UI update the messagelist at the background.
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
                     public void run() {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                // update messageList so the newly selected will be showed with buttons
-                                translations.notifyDataSetChanged();
-                                //m.suggestionsAdapter.notifyDataSetChanged();
-                            }
-                        });
+                        translations.notifyDataSetChanged();
                     }
-                }.start();
+                });
             }
-        }
+        }.start();
     }
-
-
-    /**
-     * Handles the task of getting helpers (suggestions and documentation).
-     */
-    private class FetchHelpersTask extends AsyncTask<Void, Void, Void>{
-
-        public MessageAdapter m;
-
-        // CTOR
-        public FetchHelpersTask(MessageAdapter m) {
-            this.m = m;
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            MWApi api = app.getApi();
-            ApiResult result;
-            try { // send API request
-                result = api.action("translationaids")
-                        .param("title", m.getmTitle())
-                        .param("group", m.getmGrupe())                // project
-                        .param("prop", "mt|ttmserver|documentation")  // info to get
-                        .post();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            }
-
-            m.clearSuggestions();
-            int count = 0;
-
-            // extracts suggestions
-            ArrayList<ApiResult> packedSuggestions = result.getNodes("/api/helpers/mt/suggestion");
-            Log.d("TWN", "Actual result is" + Utils.getStringFromDOM(result.getDocument()));
-
-            String s;
-            // insert suggestions with not longer than "MAX_LENGTH_FOR_SUGGESTION",
-            // (too long suggestion is empirically bad suggestion)
-            // but no more than "MAX_NO_SUGGESTIONS"
-            for(ApiResult packedSuggestion: packedSuggestions)
-            {
-                if (count<MAX_NO_SUGGESTIONS){
-                    s = packedSuggestion.getString("@target");
-                    if (s.length()>MAX_LENGTH_FOR_SUGGESTION)
-                        continue;
-
-                    Log.d("TWN", "suggestion is" + s);
-                    if(m.addSuggestion(s)) // this call also makes sure no to add duplicates
-                        count++;
-                } else break;
-            }
-
-            // insert suggestions with not longer than "MAX_LENGTH_FOR_SUGGESTION",
-            // with a quality of at least "MIN_QUALITY_FOR_SUGGESTION",
-            // but no more than "MAX_NO_SUGGESTIONS"
-            ArrayList<ApiResult> packedTtms = result.getNodes("/api/helpers/ttmserver/suggestion");
-            for(ApiResult packedSuggestion: packedTtms)
-            {
-                if (count<MAX_NO_SUGGESTIONS){
-                    if (packedSuggestion.getNumber("@quality") < MIN_QUALITY_FOR_SUGGESTION)
-                        continue;
-                    s = packedSuggestion.getString("@target");
-                    if (s.length()>MAX_LENGTH_FOR_SUGGESTION)
-                        continue;
-                    Log.d("TWN", "suggestion is" + s);
-                    if (m.addSuggestion(s)) // this call also makes sure no to add duplicates
-                        count++;
-                } else break;
-            }
-
-            // extract documentation
-            String doc = result.getNode("/api/helpers/documentation").getString("@html");
-            // documentation is a helper which is shown by WebView,
-            // since it is written in 'wiki' code, contains patterns etc.
-
-            doc = doc.split("<div class=\"mw-identical-title mw-collapsible mw-collapsed")[0];
-            // some of the documentations include a collapsible tail which let the user see
-            // similar usage examples. we are not interested in this tail, for now.
-
-            Log.d("TWN", "doc is: " + doc);
-            m.setDocumentation(doc);
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void v) {
-            super.onPostExecute(v);
-
-            int mPosition = translations.getPosition(m);
-            int minPos = msgListView.getFirstVisiblePosition();
-            int maxPos = msgListView.getLastVisiblePosition();
-            if (mPosition>=minPos && mPosition<=maxPos)
-            {
-                //View updateView = mAdapterView.getChildAt(mPosition-minPos);
-                //AdapterView final sugAdapterView = (AdapterView) updateView.findViewById(R.id.listSuggestions);
-
-                new Thread() { //this allows the UI update the messagelist at the background.
-                    public void run() {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                // update messageList so the newly selected will be showed with buttons
-                                   translations.notifyDataSetChanged();
-                                //m.suggestionsAdapter.notifyDataSetChanged();
-                            }
-                        });
-                    }
-                }.start();
-            }
-        }
-    }
-
 
     /**
      * handles the way messages data-store is reflected at the UI
      */
-    private class MessageListAdapter extends ArrayAdapter<MessageAdapter> {
+    public class MessageListAdapter extends ArrayAdapter<MessageAdapter> {
 
         public MessageListAdapter(Context context, int textViewResourceId) {
             super(context, textViewResourceId);
         }
 
-
         // 'getViewTypeCount' and 'getItemViewType' help the ListAdapter to reuse objects
         // and therefore save performance impact
         @Override
-        public int getViewTypeCount (){
-            return 4;
-        }
+        public int getViewTypeCount (){ return 4; }
 
         @Override
         public int getItemViewType (int position){
-            if (position==getCount()-1)
-               return 3;                            // 'more' button
+            if (position==getCount()-1) return 3;   // 'more' button
             MessageAdapter m = getItem(position);
-            if (m.getmState()==1)
-               return 0;                            // proofread message
-            if (m.isCommitted())
-               return 2;                            // committed translation
-            else
-               return 1;                            // translation message
+            if (m.getmState()==1)       return 0;   // proofread message
+            if (m.isCommitted())        return 2;   // committed translation
+            else                        return 1;   // translation message
         }
 
         @Override
@@ -518,18 +131,26 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         public View getView(int position, View convertView, ViewGroup parent) {
 
             View v=null;
-            TextView lblSourceText;
-            final MessageAdapter m;
+            TextView lblSourceText = null;
             int viewType = getItemViewType(position);
+            final MessageAdapter m = ( viewType<3 ? this.getItem(position) : null );
+
+            if (viewType<2)
+            {
+                v = convertView==null
+                    ? (   viewType==0
+                        ? getLayoutInflater().inflate(R.layout.listitem_review, parent,false)
+                        : getLayoutInflater().inflate(R.layout.listitem_translation, parent,false))
+                    : convertView;
+                lblSourceText = (TextView) v.findViewById(R.id.lblSourceText);
+                lblSourceText.setText(m.getDefinition());
+            }
+
             switch (viewType){
                 case 0:     // proofread view
-                    m = this.getItem(position);
-                    v = convertView==null ? getLayoutInflater().inflate(R.layout.listitem_review, parent,false)
-                                          : convertView;
 
                     // get all the relevant components
                     assert v != null;
-                    lblSourceText = (TextView) v.findViewById(R.id.lblSourceText);
                     TextView lblTranslatedText = (TextView) v.findViewById(R.id.lblTranslatedText);
                     TextView lblAcceptText     = (TextView) v.findViewById(R.id.lblAcceptText);
                     View btnReject = v.findViewById(R.id.btnReject);
@@ -549,13 +170,10 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                             // Create a new map of values, where column names are the keys
                             ContentValues values = new ContentValues();
                             values.put(RejectedMessagesDbHelper.MsgEntry.COLUMN_NAME_ENTRY_ID,m.getRevision());
-                            // we save only one value for now: revision number.
+                            // save only revision number.
 
-                            if (db != null) {
-                                db.insert( RejectedMessagesDbHelper.MsgEntry.TABLE_NAME, null,  values);
-                            }
+                            if (db!=null) db.insert( RejectedMessagesDbHelper.MsgEntry.TABLE_NAME, null,  values);
 
-                            // now remove from our list
                             translations.remove(m);
                         }
                     });
@@ -565,14 +183,13 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         @Override
                         public void onClick(View v) {
                             m.setmState(2);
+                            new FetchHelpersTask((Activity)getContext(),m).execute();
                             translations.notifyDataSetChanged();
-                            new FetchHelpersTask(m).execute();
                         }
                     });
 
                     // bind action for accept
                     btnAccept.setOnClickListener(new View.OnClickListener() {
-
                         @Override
                         public void onClick(View v) {
                             ReviewTranslationTask task = new ReviewTranslationTask(MainActivity.this, m);
@@ -581,7 +198,6 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     });
 
                     // populate view with message details
-                    lblSourceText.setText(m.getDefinition());
                     lblTranslatedText.setText(m.getTranslation());
 
                     // show Accept Count - iff greater than 0.
@@ -594,7 +210,7 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     }
                     else
                     {
-                        lblAcceptText.setVisibility(View.INVISIBLE);
+                        lblAcceptText.setVisibility(View.INVISIBLE); // do not show accept count when zero
                     }
 
                     // show accept/reject only for selected cell.
@@ -607,12 +223,14 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                     break;
 
                 case 1:     // translation view
-                    m = this.getItem(position);
+                    View delBtn = v.findViewById(R.id.deleteButton);
+                    View canBtn = v.findViewById(R.id.cancelButton);
+                    View infoBtn = v.findViewById(R.id.infoButton);
+                    ListView sugListView = (ListView)v.findViewById(R.id.listSuggestions);
                     WebView infoWebView;
                     final ViewFlipper viewFlipper;
                     if (convertView==null)
                     {
-                        v = getLayoutInflater().inflate(R.layout.listitem_translation, parent,false);
                         assert v != null;
                         ViewGroup infoLayout = (ViewGroup) v.findViewById(R.id.infoLayout);
                         infoWebView = new WebView(getContext());
@@ -621,42 +239,43 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                                 return true;
                             }
                         });
-                        viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
                         infoWebView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));//viewFlipper.getHeight()));
-                        infoWebView.setBackgroundColor(0);
+                        infoWebView.setBackgroundColor(0); //todo: remove this line or the one below
+                        infoWebView.setBackgroundColor(getContext().getResources().getColor(R.drawable.infoview_color));
                         infoWebView.setVerticalScrollBarEnabled(true);
                         WebSettings ws= infoWebView.getSettings();
                         ws.setTextSize(WebSettings.TextSize.SMALLER);
                         infoLayout.addView(infoWebView);
 
-
-
-                        Animation animationFlipIn  = AnimationUtils.loadAnimation(getContext(), R.anim.flipin);
-                        Animation animationFlipOut = AnimationUtils.loadAnimation(getContext(), R.anim.flipout);
-                        viewFlipper.setInAnimation(animationFlipIn);
-                        viewFlipper.setOutAnimation(animationFlipOut);
+                        viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
+                        viewFlipper.setInAnimation(getContext(),R.anim.flipin);
+                        viewFlipper.setOutAnimation(getContext(),R.anim.flipout);
 
                     }
-                    else {
-                        v = convertView;
+                    else
+                    {
                         infoWebView = (WebView)((ViewGroup)v.findViewById(R.id.infoLayout)).getChildAt(0);
                         viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
                     }
 
-                    lblSourceText = (TextView) v.findViewById(R.id.lblSourceText); // TODO: remove code duplication
-                    lblSourceText.setText(m.getDefinition());                     // TODO: also here
+                    sugListView.setAdapter(m.suggestionsAdapter);
+                    m.suggestionsAdapterView = sugListView; // we need it in order to update suggestions with better performance
 
-                    ListView suglistView = (ListView)v.findViewById(R.id.listSuggestions);
-                    suglistView.setAdapter(m.suggestionsAdapter);
-                    m.suggestionsAdapterView = suglistView;         // yes, we need it in order to update suggestions with better performance
+                    canBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            m.setmState(1);
+                            translations.notifyDataSetChanged();
+                        }
+                    });
 
+                    delBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            translations.remove(m);
+                        }
+                    });
 
-                    if (viewFlipper.getCurrentView().getTag().equals("info") && !m.isInfoNeedShown()){
-                        viewFlipper.showNext();
-                    }
-
-                    View infoBtn = v.findViewById(R.id.infoButton);
-                    infoBtn.setVisibility(m.IsDocumentationExists() ? View.VISIBLE:View.GONE);
                     infoBtn.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View view) {
@@ -665,60 +284,64 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                         }
                     });
 
-                    infoWebView.loadData(m.getDocumentation(), "text/html; charset=UTF-8", null);  // load documentation on card
-
                     // set on click listener for suggestions
-                    suglistView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    sugListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                         @Override
                         public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                            if (i<adapterView.getCount()-1){ // suggestion has been clicked
+                            if (i < adapterView.getCount() - 1) { // suggestion has been clicked
                                 m.savedInput = adapterView.getItemAtPosition(i).toString();
-                                new SubmitTranslationTask((Activity) getContext(),m).execute();
+                                new SubmitTranslationTask((Activity) getContext(), m).execute();
+                                notifyDataSetChanged();
                             }
                         }
                     });
 
-                    View delBtn = v.findViewById(R.id.deleteButton);
-                    View canBtn = v.findViewById(R.id.cancelButton);
+                    if (viewFlipper.getCurrentView().getTag().equals("info") != m.isInfoNeedShown()){
 
-                    if (CURRENT_STATE==1) // namely, we edit message on proofread mode
-                    {
-                        // activate cancel edit button
-                        delBtn.setVisibility(View.GONE);
-                        canBtn.setVisibility(View.VISIBLE);
-                        canBtn.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                m.setmState(1);
-                                translations.notifyDataSetChanged();
-                            }
-                        });
-                    }
-                    else {
-                        // activate discard message button
-                        canBtn.setVisibility(View.GONE);
-                        delBtn.setVisibility(View.VISIBLE);
-                        delBtn.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                translations.remove(m);
-                            }
-                        });
+                        // need to change view without animation. it is sadly inefficient...
+                        Animation in=viewFlipper.getInAnimation();
+                        Animation out=viewFlipper.getOutAnimation();
+                        viewFlipper.setInAnimation(null);
+                        viewFlipper.setOutAnimation(null);
+                        viewFlipper.showNext();
+                        viewFlipper.setInAnimation(in);
+                        viewFlipper.setOutAnimation(out);
                     }
 
-//                    LinearLayout suggestionsLayout = (LinearLayout) v.findViewById(R.id.suggestionsLayout);
-//                    LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) suggestionsLayout.getLayoutParams();
+                    infoBtn.setVisibility(m.IsDocumentationExists() ? View.VISIBLE:View.GONE);
 
-//                    int x = 0;
-//                    for (int i=0; i<suglistView.getChildCount();i++ ){
-//                        i+= suglistView.getChildAt(i).getHeight();
-//                    }
-//                    params.height = x + 40;// suglistView.getCount()*lblSourceText.getHeight()-30;
-//                    suggestionsLayout.setLayoutParams(params);
+                    infoWebView.loadData(m.getDocumentation(), "text/html; charset=UTF-8", null); // load documentation on card
+
+                    delBtn.setVisibility( CURRENT_STATE==1 ? View.GONE    : View.VISIBLE );
+                    canBtn.setVisibility( CURRENT_STATE==1 ? View.VISIBLE : View.GONE    );
+
+                    View suggestionsLayout = v.findViewById(R.id.listSuggestions);
+                    int y = 0;
+                    StaticLayout layout;
+                    TextPaint paint = lblSourceText.getPaint();
+                    for (String s : m.getSuggestionsList()){
+
+                        layout = new StaticLayout(s,paint,suggestionsLayout.getWidth(), Layout.Alignment.ALIGN_NORMAL,1.0f, 0.0f, false);
+                        y += layout.getHeight()+6;
+                    }
+
+                    View suggestionsFrame = v.findViewById(R.id.suggestionsLayout);
+                    ViewGroup.LayoutParams newParams = suggestionsFrame.getLayoutParams();
+                    newParams.height = y+94;
+                    suggestionsFrame.setLayoutParams(newParams);
+
+                    // we may want to select a better .png for the frame
+//                    float r =  (float)suggestionsFrame.getWidth() / (float)newParams.height;
+//                    if (r >= 3.7)
+//                        suggestionsFrame.setBackgroundDrawable(getResources().getDrawable(R.drawable.new_frame_1));
+//                    else if (newParams.height >= 2.3)
+//                        suggestionsFrame.setBackgroundDrawable(getResources().getDrawable(R.drawable.new_frame_2));
+//                    else
+//                        suggestionsFrame.setBackgroundDrawable(getResources().getDrawable(R.drawable.new_frame_3));
 
                     break;
+
                 case 2:     // committed translation view
-                    m = this.getItem(position);
 
                     v = convertView==null ? getLayoutInflater().inflate(R.layout.listitem_committed, parent,false)
                             : convertView;
@@ -733,19 +356,18 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                             : convertView;
                     return v;
             }
-            return v;
 
+            return v;
         }
     }
 
     // just applying FetchTranslationsTask in a friendlier way
-    private void fetchTranslations() {
-        String lang = PreferenceManager.getDefaultSharedPreferences(this).getString("language", "en");
-        FetchTranslationsTask fetchTranslations = new FetchTranslationsTask(this, CUR_LANG, FETCH_SIZE, CURRENT_STATE);
+    public void fetchTranslations() {
+        FetchTranslationsTask fetchTranslations = new FetchTranslationsTask(this, CUR_LANG, CUR_PROJECT, FETCH_SIZE, CURRENT_STATE);
         fetchTranslations.execute();
     }
 
-    private void refreshTranslations() { // exactly as "fetchTranslations", but clear first
+    public void refreshTranslations() { // exactly as "fetchTranslations", but clear first
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
         CUR_LANG    = sharedPref.getString(getString(R.string.langugage_key), CUR_LANG);
         CUR_PROJECT = sharedPref.getString(getString(R.string.projects_key), CUR_PROJECT);
@@ -762,13 +384,15 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         private Context context;
 
         public sendButtonListener(Context context, MessageAdapter m){
-            this.m= m;
-            this.context=context;
+            this.m = m;
+            this.context = context;
         }
 
         @Override
         public void onClick(View view) {
+            // m.input already set on every change
             new SubmitTranslationTask((Activity) context, m).execute();
+            translations.notifyDataSetChanged();
         }
     }
 
@@ -807,14 +431,28 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
             }
         });
 
-
-
         return v;
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Bundle extras =  getIntent().getExtras();
+        if (extras !=null && extras.getBoolean("should_logout_first")){
+            getApp().setCurrentAccount(null);
+            Intent i= new Intent(this, LoginActivity.class);//homescreen of your app.
+            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_HISTORY);
+            i.putExtra("should_logout_first",true);
+            startActivity(i);
+            finish();
+            return;
+        }
+        staticIntent = getIntent();
+        requestAuthToken();
+
+        getActionBar().setBackgroundDrawable(getResources().getDrawable(R.drawable.menu_color));
+
         setContentView(net.translatewiki.app.R.layout.activity_main);
 
         layoutInflater = getLayoutInflater();
@@ -838,16 +476,9 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                 {
                     //Toast.makeText(getApplicationContext(), new Long(l).toString(), Toast.LENGTH_SHORT).show(); //DEBUG purpose
                     View ol;
-
                     if (view.getTag().equals("cm"))
                     {
                         ((MessageAdapter)adapterView.getItemAtPosition(i)).setCommitted(false);   // because we move to edit mode
-                        view = getLayoutInflater().inflate(R.layout.listitem_committed, adapterView,false);
-
-                        assert view != null;
-                        TextView lblCommittedText = (TextView) view.findViewById(R.id.lblCommittedText); // TODO: remove code duplication
-                        lblCommittedText.setText(((MessageAdapter)adapterView.getItemAtPosition(i)).savedInput);
-
                         translations.notifyDataSetChanged();
                     }
                     else if (view.getTag().equals("pr"))
@@ -882,8 +513,6 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
                 }
             }
         });
-
-        requestAuthToken();
     }
 
     @Override
@@ -891,7 +520,6 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
         super.onAuthCookieAcquired(authCookie);
         app.getApi().setAuthCookie(authCookie);
         refreshTranslations();
-        PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(this);
     }
 
     @Override
@@ -903,10 +531,16 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     }
 
     @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        refreshTranslations();
+    protected void onStart() {
+        super.onStart();
+        Bundle extras =  getIntent().getExtras();
+        if (extras !=null && extras.getBoolean("should_refresh_translations")){
+            selected = -1;
+            refreshTranslations();
+        }
     }
 
+    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         //Used to put icons on action bar
@@ -917,24 +551,26 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
 
         boolean isLight = SampleList.THEME == com.actionbarsherlock.R.style.Theme_Sherlock_Light;
 
-        MenuItem searchMenuItem = menu.add("Search");
-        searchMenuItem.setIcon(isLight ? R.drawable.ic_search_inverse : R.drawable.ic_search)
-                      .setActionView(R.layout.collapsible_edittext)
-                      .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
-//
-//        MenuItem refreshMenuItem = menu.add("Refresh");
-//        refreshMenuItem.setIcon(isLight ? R.drawable.ic_refresh_inverse : R.drawable.ic_refresh)
-//                       .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
-//        refreshMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
-//            @Override
-//            public boolean onMenuItemClick(MenuItem menuItem) {
-//                Toast refreshToast = Toast.makeText(getApplicationContext(), "Refresh", Toast.LENGTH_SHORT);
-//                refreshToast.show();
-//                translations.notifyDataSetChanged();
-//                return true;
-//            }
-//        });
+        //MenuItem searchMenuItem = menu.add("Search");
+        //searchMenuItem.setIcon(isLight ? R.drawable.ic_search_inverse : R.drawable.ic_search)
+        //              .setActionView(R.layout.collapsible_edittext)
+        //              .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
 
+        menu.findItem(R.id.action_proofread).setTitle(CURRENT_STATE==1 ? "Translate" : "Proofread");
+
+        // new version
+        menu.findItem(R.id.sub_menu_item).setVisible(false);
+        MenuItem settingsBtn = menu.add("Settings");
+        settingsBtn.setIcon(isLight ? R.drawable.settings_icon_inverse : R.drawable.settings_icon).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        settingsBtn.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem menuItem) {
+                openSettings();
+                return true;
+            }
+        });
+
+        getActionBar().setHomeButtonEnabled(true);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -942,31 +578,37 @@ public class MainActivity extends AuthenticatedActivity implements SharedPrefere
     public boolean onOptionsItemSelected(com.actionbarsherlock.view.MenuItem item)
     {
         switch (item.getItemId()){
-            case R.id.action_proofread:
-                if (CURRENT_STATE!=1){
-                    setTitle("Proofread");
-                    CURRENT_STATE = 1;
-                    refreshTranslations();
-                    SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-                    sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE);
-                    sharedPrefEditor.commit();
-                } else return false;
-                break;
-            case R.id.action_translate:
-                if (CURRENT_STATE!=2){
-                    setTitle("Translate");
-                    CURRENT_STATE = 2;
-                    refreshTranslations();
-                    SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-                    sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE);
-                    sharedPrefEditor.commit();
-                } else return false;
+            case R.id.sub_menu_item:
                 break;
             case R.id.action_settings:
-                Intent intent =  new Intent(this,SettingsActivity.class);
-                startActivity(intent);
+                openSettings();
+                break;
+            case R.id.action_proofread:
+            default:
+                if (CURRENT_STATE!=1){
+                    setTitle("Proofread");
+                    item.setTitle("Translate");
+                    switchState(1);
+                } else if (CURRENT_STATE!=2){
+                    setTitle("Translate");
+                    item.setTitle("Proofread");
+                    switchState(2);
+                } else return false;
                 break;
         }
         return true;
+    }
+
+    public void switchState(int newState){
+        CURRENT_STATE = newState;
+        refreshTranslations();
+        SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+        sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE);
+        sharedPrefEditor.commit();
+    }
+
+    public void openSettings(){
+        Intent intent =  new Intent(this,SettingsActivity.class);
+        startActivity(intent);
     }
 }

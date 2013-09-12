@@ -7,8 +7,6 @@
            <menu>
                <item android:id="@+id/action_proofread"
                      android:title="@string/action_proofread"/>
-               <item android:id="@+id/action_translate"
-                     android:title="@string/action_translate"/>
                <item android:id="@+id/action_settings"
                      android:title="@string/action_settings" />
            </menu>

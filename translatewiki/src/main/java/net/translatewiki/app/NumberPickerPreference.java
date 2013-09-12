@@ -30,7 +30,6 @@ public class NumberPickerPreference extends DialogPreference {
         super(context, attrs);
         this.minVal = minVal;
         this.maxVal = maxVal;
-
         setDialogIcon(null);
     }
 
@@ -49,7 +48,9 @@ public class NumberPickerPreference extends DialogPreference {
                     numberPicker.setValue(i-getStep());
             }
         });
-        if ( initialValue != null ) picker.setValue(initialValue);
+        if (initialValue!=null){
+            picker.setValue(initialValue);
+        }
     }
 
     @Override
@@ -77,5 +78,4 @@ public class NumberPickerPreference extends DialogPreference {
             persistInt(val);
         }
     }
-
 }

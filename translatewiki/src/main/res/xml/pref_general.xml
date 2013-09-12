@@ -23,7 +23,7 @@
    <net.translatewiki.app.FetchNumberPickerPreference
            android:dialogLayout="@layout/number_picker"
            android:dialogTitle="Fetch Size"
-           android:key="fetch_size"
+           android:key="fetch_size_key"
            android:title="Fetch size"
            android:summary="The number of messages to fetch each time"
            android:defaultValue="10" />
@@ -31,7 +31,7 @@
     <net.translatewiki.app.MaxLenNumberPickerPreference
             android:dialogLayout="@layout/number_picker"
             android:dialogTitle="Maximum Message Length"
-            android:key="max_msg_length"
+            android:key="max_length_for_message_key"
             android:title="Maximum message length"
             android:summary="The maximal length of message to be shown"
             android:defaultValue="100" />

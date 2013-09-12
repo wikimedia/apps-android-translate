@@ -30,7 +30,7 @@ public class PairList extends ArrayList<Pair<String, String>> {
 
     public String getValueOfEntry(String s){
         for (Pair<String, String> pair : this) {
-            if (s==pair.first) {
+            if (s.equals(pair.first)) {
                 return pair.second;
             }
         }
@@ -39,7 +39,7 @@ public class PairList extends ArrayList<Pair<String, String>> {
 
     public String getEntryOfValue(String s){
         for (Pair<String, String> pair : this) {
-            if (s==pair.second) {
+            if (s.equals(pair.second)) {
                 return pair.first;
             }
         }

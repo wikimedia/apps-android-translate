@@ -1,9 +1,5 @@
 package org.mediawiki.auth;
 
-import java.io.IOException;
-
-import net.translatewiki.app.R;
-
 import android.accounts.AbstractAccountAuthenticator;
 import android.accounts.Account;
 import android.accounts.AccountAuthenticatorResponse;
@@ -13,7 +9,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import net.translatewiki.app.R;
+
 import org.mediawiki.api.MWApi;
+
+import java.io.IOException;
 
 public class WikiAccountAuthenticator extends AbstractAccountAuthenticator {
 

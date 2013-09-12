@@ -28,10 +28,6 @@
             android:theme="@style/NoTitle" >
         </activity>
         <activity
-            android:name="net.translatewiki.app.PreferenceActivity"
-            android:label="@string/settings_title" >
-        </activity>
-        <activity
             android:name="net.translatewiki.app.MainActivity"
             android:label="@string/title_activity_main" >
             <intent-filter>
@@ -40,7 +36,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <activity
+            android:name="net.translatewiki.app.SettingsActivity"
+            android:label="@string/title_activity_settings" >
+        </activity>
         <service
             android:name="org.mediawiki.auth.WikiAccountAuthenticatorService"
             android:exported="true"
@@ -53,11 +52,6 @@
                 android:name="android.accounts.AccountAuthenticator"
                 android:resource="@xml/authenticator" />
         </service>
-
-        <activity
-            android:name="net.translatewiki.app.SettingsActivity"
-            android:label="@string/title_activity_settings" >
-        </activity>
     </application>
 
 </manifest>

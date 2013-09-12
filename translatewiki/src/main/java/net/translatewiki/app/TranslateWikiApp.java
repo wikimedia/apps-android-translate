@@ -19,7 +19,7 @@ public class TranslateWikiApp extends Application implements MWApiApplication {
     private static MWApi api = createMWApi(); //singleton
 
     private Account currentAccount = null; // Unlike a savings account...
-    public static final String API_URL = "http://translatewiki.net/w/api.php";
+    public static final String API_URL = "https://translatewiki.net/w/api.php";
    
     public static MWApi createMWApi() {
         DefaultHttpClient client = new DefaultHttpClient();

@@ -1,6 +1,7 @@
 package net.translatewiki.app;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class Message {
     private String mKey;
@@ -10,12 +11,11 @@ public class Message {
     private String mDefinition;
     private String mTranslation;
     private String mRevision;
+    private String documentation;
     private int    mAcceptCount;
     private int    mState;
-    private ArrayList<String> suggestionsList;
-    private String documentation;
+    private List<String> suggestionsList;
 
-    //private boolean infoNeedShown;
 
     public Message(String key, String mTitle, String mGrupe, String lang, String definition, String translation, String revision, int mAcceptCount, int mState)
     {
@@ -90,7 +90,7 @@ public class Message {
         suggestionsList.clear();
     }
 
-    public ArrayList<String> getSuggestionsList() {
+    public List<String> getSuggestionsList() {
         return suggestionsList;
     }
 

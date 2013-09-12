@@ -1,9 +1,5 @@
 package org.mediawiki.auth;
 
-import java.io.IOException;
-
-import net.translatewiki.app.R;
-
 import android.accounts.Account;
 import android.accounts.AccountAuthenticatorActivity;
 import android.accounts.AccountAuthenticatorResponse;
@@ -20,6 +16,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import net.translatewiki.app.R;
+
+import java.io.IOException;
 
 public class LoginActivity extends AccountAuthenticatorActivity {
 
@@ -105,6 +105,12 @@ public class LoginActivity extends AccountAuthenticatorActivity {
         usernameEdit = (EditText) findViewById(R.id.loginUsername);
         passwordEdit = (EditText) findViewById(R.id.loginPassword);
         final Activity that = this;
+
+        Bundle extras =  getIntent().getExtras();
+        if (extras !=null && extras.getBoolean("should_logout_first")){
+            new LogoutTask(that).execute(null);
+        }
+
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -113,10 +119,15 @@ public class LoginActivity extends AccountAuthenticatorActivity {
                 String canonicalUsername = username.substring(0,1).toUpperCase() + username.substring(1);
 
                 String password = passwordEdit.getText().toString();
-                
-                Log.d("Commons", "Login to start!");
-                LoginTask task = new LoginTask(that);
-                 task.execute(canonicalUsername, password);
+
+                if (canonicalUsername!=null && canonicalUsername.length()>0 && password!=null && password.length()>0){
+                    Log.d("Commons", "Login to start!");
+                    LoginTask task = new LoginTask(that);
+                     task.execute(canonicalUsername, password);
+                }else { // in  case no username or password
+                    Toast toast = Toast.makeText(that, "Missing fields", Toast.LENGTH_SHORT);
+                    toast.show();
+                }
             }
         });
     }
@@ -134,6 +145,48 @@ public class LoginActivity extends AccountAuthenticatorActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    public void removeAccounts(){
+        AccountManager manager = AccountManager.get(this);
+        for(Account account :manager.getAccounts()){
+            manager.removeAccount(account,null,null);
+        }
+    }
+
+    public class LogoutTask extends AsyncTask<Void, Void, Void> {
+
+        Activity context;
+
+        LogoutTask(Activity context) {
+            this.context = context;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            removeAccounts();
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            try {
+                app.getApi().logout();
+            } catch (IOException e) {
+                // Do something better!
+                return null;
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+            Log.d("Commons", "Logout done!");
+
+            Toast successToast = Toast.makeText(context, R.string.logout_success, Toast.LENGTH_SHORT);
+            successToast.show();
+        }
     }
 
 }

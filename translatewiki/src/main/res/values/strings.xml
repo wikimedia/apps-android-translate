@@ -46,5 +46,6 @@
     <string name="max_length_for_message_key">max_length_for_message_key</string>
     <string name="project_entry_list_key">project_entry_list_key</string>
     <string name="project_value_list_key">project_value_list_key</string>
+    <string name="logout_success">Logout success!</string>
 
 </resources>

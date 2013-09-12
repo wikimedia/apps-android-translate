@@ -4,7 +4,8 @@
                 android:layout_height="match_parent"
                 android:background="#fbfbfb"
                 android:layout_margin="0dp"
-                android:focusable="false" >
+                android:focusable="false"
+                >
                 <ListView
                     android:id="@+id/listTranslations"
                     android:layout_width="match_parent"

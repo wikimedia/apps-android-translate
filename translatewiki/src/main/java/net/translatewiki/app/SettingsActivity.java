@@ -1,7 +1,10 @@
 package net.translatewiki.app;
 
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.os.Build;
@@ -11,6 +14,7 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 
@@ -34,13 +38,20 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
      * as a master/detail two-pane view on tablets. When true, a single pane is
      * shown on tablets.
      */
-    private static final boolean ALWAYS_SIMPLE_PREFS = true;
+    private static final boolean ALWAYS_SIMPLE_PREFS = false;
+    private boolean settingsChanged = false;
+    private static SharedPreferences sharedPrefs;
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-
+        settingsChanged = false;
         setupSimplePreferencesScreen();
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPrefs.registerOnSharedPreferenceChangeListener(this);
+        //getActionBar().setHomeButtonEnabled(true);
+        getActionBar().setDisplayHomeAsUpEnabled(true);
+        getActionBar().setBackgroundDrawable(getResources().getDrawable(R.drawable.menu_color));
     }
 
     /**
@@ -62,10 +73,10 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
         // Bind the summaries of EditText/List/Dialog/Ringtone preferences to
         // their values. When their values change, their summaries are updated
         // to reflect the new value, per the Android Design guidelines.
-      //  bindPreferenceSummaryToValue(findPreference("example_text"));
-      //  bindPreferenceSummaryToValue(findPreference("example_list"));
-      //  bindPreferenceSummaryToValue(findPreference("notifications_new_message_ringtone"));
-      //  bindPreferenceSummaryToValue(findPreference("sync_frequency"));
+//        bindPreferenceSummaryToValue(findPreference(getString(R.string.langugage_key)));
+//        bindPreferenceSummaryToValue(findPreference(getString(R.string.projects_key)));
+//        bindPreferenceSummaryToValue(findPreference(getString(R.string.fetch_size_key)));
+//        bindPreferenceSummaryToValue(findPreference(getString(R.string.max_length_for_message_key)));
     }
 
     /** {@inheritDoc} */
@@ -156,8 +167,9 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
     }
 
     @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
-
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        settingsChanged = true;
+        Log.d("TWN","onSharedPreferenceChanged");
     }
 
     @Override
@@ -174,7 +186,6 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
                 .unregisterOnSharedPreferenceChangeListener(this);
     }
 
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         //Used to put icons on action bar
@@ -182,6 +193,7 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
         // Inflate the menu items for use in the action bar
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.settings, menu);
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -191,23 +203,50 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
         switch (item.getItemId()){
             case R.id.action_logout:
 
-                //todo: implement logout
-
+                Intent i= new Intent(this, MainActivity.class);//homescreen of your app.
+                i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_HISTORY);
+                i.putExtra("should_logout_first",true);
+                startActivity(i);
+                finish();
                 break;
 
             case R.id.action_restore:
 
-                //todo: implement restore defaults
-                SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-                sharedPrefEditor.putString(getString(R.string.langugage_key), "he");
-                sharedPrefEditor.putString(getString(R.string.projects_key), "!additions");
-                sharedPrefEditor.putInt(getString(R.string.fetch_size_key), 10);
-                sharedPrefEditor.putInt(getString(R.string.max_length_for_message_key), 100);
-                sharedPrefEditor.commit();
+                AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+                alertDialog.setTitle("Restore defaults");
+                alertDialog.setMessage("Are you sure?");
+                alertDialog.setButton(DialogInterface.BUTTON_NEGATIVE,"Cancel",new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {}
+                });
+                alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, "OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        //todo: delete rejected messages data
+
+                        SharedPreferences.Editor sharedPrefEditor = sharedPrefs.edit();
+                        sharedPrefEditor.putString(getString(R.string.langugage_key), "en");
+                        sharedPrefEditor.putString(getString(R.string.projects_key), "!recent");
+                        sharedPrefEditor.putInt(getString(R.string.fetch_size_key), 10);
+                        sharedPrefEditor.putInt(getString(R.string.max_length_for_message_key), 100);
+                        sharedPrefEditor.commit();
+
+                        LanguageSearchableListPreference.deleteSavedData();
+                        ProjectSearchableListPreference.deleteSavedData();
+                    }
+                });
+                alertDialog.show();
+                break;
+            default:
+                if (settingsChanged){
+                    Intent intent = MainActivity.getStaticIntent();
+                    if (intent!=null) intent.putExtra("should_refresh_translations",true);
+                }
+                this.finish();
                 break;
         }
         return true;
     }
+
 
     /**
      * This fragment shows general preferences only. It is used when the
@@ -224,8 +263,11 @@ public class SettingsActivity extends PreferenceActivity  implements SharedPrefe
             // to their values. When their values change, their summaries are
             // updated to reflect the new value, per the Android Design
             // guidelines.
-        //    bindPreferenceSummaryToValue(findPreference("example_text"));
-            bindPreferenceSummaryToValue(findPreference("example_list"));
+            bindPreferenceSummaryToValue(findPreference("langugage_key"));
+            bindPreferenceSummaryToValue(findPreference("projects_key"));
+            bindPreferenceSummaryToValue(findPreference("fetch_size_key"));
+            bindPreferenceSummaryToValue(findPreference("max_length_for_message_key"));
+
         }
     }
 }

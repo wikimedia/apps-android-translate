@@ -1,16 +1,16 @@
 package org.mediawiki.auth;
 
+import android.os.AsyncTask;
+import android.os.Build;
+
+import org.w3c.dom.Node;
+
 import java.io.StringWriter;
 
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.TransformerFactoryConfigurationError;
-
-import org.w3c.dom.Node;
-
-import android.os.AsyncTask;
-import android.os.Build;
 
 public class Utils {
     public static <T> void executeAsyncTask(AsyncTask<T, ?, ?> task,

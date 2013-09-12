@@ -5,25 +5,20 @@ import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
 
 import org.mediawiki.api.ApiResult;
 import org.mediawiki.api.MWApi;
 import org.mediawiki.auth.MWApiApplication;
-import org.mediawiki.auth.Utils;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Created by orsa on 22/8/13.
@@ -31,23 +26,47 @@ import java.util.Set;
 public class ProjectSearchableListPreference extends SearchableListPreference {
 
     private static final int MAX_RECENTS = 4;
+    private static Context staticContext = null;
+    private static ProjectSearchableListPreference that;
 
-    String ENTRIES_FILENAME     = "projects_entries_file"    ;
-    String VALUES_FILENAME      = "projects_values_file"     ;
-    String REC_ENTRIES_FILENAME = "rec_projects_entries_file";
-    String REC_VALUES_FILENAME  = "rec_projects_values_file" ;
+    static String  ENTRIES_FILENAME     = "projects_entries_file"    ;
+    static String  VALUES_FILENAME      = "projects_values_file"     ;
+    static String  REC_ENTRIES_FILENAME = "rec_projects_entries_file";
+    static String  REC_VALUES_FILENAME  = "rec_projects_values_file" ;
 
     private static PairList dataList = new PairList();      // <entry,value>
     private static PairList recentList = new PairList();
 
     public ProjectSearchableListPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
+        staticContext = context;
+        that = this;
         recentList  = loadList(REC_ENTRIES_FILENAME,REC_VALUES_FILENAME);
         dataList    = loadList(ENTRIES_FILENAME, VALUES_FILENAME);
-        if (dataList==null || dataList.size()==0){
+        if (dataList==null || dataList.size()==0){ // in that case we fetch project from server automatically
             refreshList();
         }
+        setSummaryofValue();
         dataList.removeAll(recentList);
+
+    }
+
+    public void setSummaryofValue(){
+        String summaryVal = PreferenceManager.getDefaultSharedPreferences(getContext()).getString(getContext().getString(R.string.projects_key), "");
+        if (summaryVal==null || summaryVal.length()==0)
+            summaryVal = getPersistedString(getDefaultValue());
+
+        String summaryEntry = recentList.getEntryOfValue(summaryVal);
+        if (summaryEntry==null)
+            summaryEntry = dataList.getEntryOfValue(getPersistedString(getDefaultValue()));
+
+        setSummary(summaryEntry!=null? summaryEntry : "" );
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        if (s.equals(getContext().getString(R.string.projects_key)))
+            setSummaryofValue();
     }
 
     @Override
@@ -61,11 +80,24 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
             case 0:
                 return recentList;
             case 1:
-                return new PairList();
+                return new PairList(); // we don't use this section for projects
             case 2:
                 return dataList;
         }
         return null;
+    }
+
+    @Override
+    public int getSizeOfSection(int section) {
+        switch (section){
+            case 0:
+                return recentList.size();
+            case 1:
+                return 0;
+            case 2:
+                return dataList.size();
+        }
+        return 0;
     }
 
     @Override
@@ -74,40 +106,39 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         if (positiveResult) {
             String selEnt = itemListAdapter.selectedEntry;
             String s = getValueOfEntry(selEnt);
-            recentList.remove(Pair.create(selEnt, s));
-            recentList.add(0, Pair.create(selEnt, s));
-            while (recentList.size()>MAX_RECENTS) recentList.remove(MAX_RECENTS);
-            dataList.removeAll(recentList);
-            saveList(REC_ENTRIES_FILENAME,REC_VALUES_FILENAME);
-            itemListAdapter.clear();
-            itemListAdapter.addAll(extractEntries());
+            if (selEnt!=null && s!=null){
+                recentList.remove(Pair.create(selEnt, s));
+                recentList.add(0, Pair.create(selEnt, s));
+                while (recentList.size()>MAX_RECENTS) recentList.remove(MAX_RECENTS);
+                dataList    = loadList(ENTRIES_FILENAME, VALUES_FILENAME);
+                dataList.removeAll(recentList);
+                saveList(REC_ENTRIES_FILENAME,REC_VALUES_FILENAME,recentList.getEntries(),recentList.getValues());
+                itemListAdapter.clear();
+                itemListAdapter.addAll(extractEntries());
+            }
         }
         sv.getOnFocusChangeListener().onFocusChange(sv,false);
     }
 
-    public ArrayList<String> getEntryList() {
+    public List<String> getEntryList() {
         ArrayList<String> entryList = new ArrayList<String>();
         if (dataList==null || dataList.size()==0){
             refreshList();
         }
         else{
-            for (Pair<String, String> s : dataList) {
-                entryList.add(s.first);
-            }
+            entryList.addAll(dataList.getEntries());
         }
 
         return entryList;
     }
 
-    public ArrayList<String> getValueList() {
+    public List<String> getValueList() {
         ArrayList<String> valueList = new ArrayList<String>();
         if (dataList==null || dataList.size()==0){
             refreshList();
         }
         else{
-            for (Pair<String, String> s : dataList) {
-                valueList.add(s.second);
-            }
+            valueList.addAll(dataList.getValues());
         }
         return valueList;
     }
@@ -128,17 +159,16 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         new FetchProjectsTask().execute();
     }
 
-    public void saveList(String key_e , String key_v) {
+    public static void saveList(String key_e , String key_v, List<String> entryList,List<String> valueList) {
 
         FileOutputStream fos;
         try {
-
-            fos = getContext().openFileOutput(key_e, Context.MODE_PRIVATE);
-            fos.write(getEntryList().toString().getBytes());
+            fos = staticContext.openFileOutput(key_e, Context.MODE_PRIVATE);
+            fos.write(entryList.toString().getBytes());
             fos.close();
 
-            fos = getContext().openFileOutput(key_v, Context.MODE_PRIVATE);
-            fos.write(getValueList().toString().getBytes());
+            fos = staticContext.openFileOutput(key_v, Context.MODE_PRIVATE);
+            fos.write(valueList.toString().getBytes());
             fos.close();
 
         } catch (FileNotFoundException e) {
@@ -158,13 +188,27 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
             b = new byte[fis.available()];
             fis.read(b);
             fis.close();
-            List<String> loadedEntryList  = new ArrayList<String>(Arrays.asList((new String(b)).substring(1,b.length - 2).split(", ")));
+            List<String> loadedEntryList, loadedValueList;
+            String tempStr, manipulatedStr;
+            if (b.length>2){
+                tempStr = new String(b).trim();
+                manipulatedStr = tempStr.substring(1,tempStr.length()-1).trim();
+                loadedEntryList  = new ArrayList<String>(Arrays.asList(manipulatedStr.split(", ")));
+            }
+            else
+                loadedEntryList  = new ArrayList<String>();
 
             fis = getContext().openFileInput(key_v);
             b = new byte[fis.available()];
             fis.read(b);
             fis.close();
-            List<String> loadedValueList = new ArrayList<String>(Arrays.asList((new String(b)).substring(1,b.length - 2).split(", ")));
+            if (b.length>2){
+                tempStr = new String(b).trim();
+                manipulatedStr = tempStr.substring(1,tempStr.length()-1).trim();
+                loadedValueList  = new ArrayList<String>(Arrays.asList(manipulatedStr.split(", ")));
+            }
+            else
+                loadedValueList  = new ArrayList<String>();
 
             int i;
             for (i=0; i<Math.min(loadedEntryList.size(), loadedValueList.size());i++){
@@ -178,6 +222,15 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         }
 
         return list;
+    }
+
+    public static void deleteSavedData(){
+
+        dataList = new PairList();
+        that.refreshList();
+        recentList = new PairList();
+        saveList(REC_ENTRIES_FILENAME,REC_VALUES_FILENAME,recentList.getEntries(),recentList.getValues());
+        saveList(ENTRIES_FILENAME,VALUES_FILENAME,dataList.getEntries(),dataList.getValues());
     }
 
     /**
@@ -211,9 +264,7 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
             }
 
             // extracts suggestions
-            List<ApiResult> packedProjects = result.getNodes("/api/query/messagegroups/group");
-
-            return packedProjects;
+            return result.getNodes("/api/query/messagegroups/group");
         }
 
         @Override
@@ -244,7 +295,7 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
                dataList.add(Pair.create("Recent Contributions", "!recent"));
             }
 
-            saveList(ENTRIES_FILENAME,VALUES_FILENAME);
+            saveList(ENTRIES_FILENAME,VALUES_FILENAME,getEntryList(),getValueList());
             dataList.removeAll(recentList);
 
 

@@ -28,7 +28,10 @@
             android:textColor="#565656"
             android:textSize="12sp"
             android:text="source text"
-            android:layout_weight="9" />
+            android:layout_weight="9"
+            android:autoLink="none"
+            android:gravity="left"
+            android:textAlignment="gravity" />
 
         <ImageButton
                 style="?android:attr/buttonStyleSmall"
@@ -50,13 +53,12 @@
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
-        android:gravity="center_horizontal"
         android:padding="4dip"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:textColor="#252525"
         android:textStyle="bold"
         android:textSize="12sp"
-        android:text="translated"/>
+        android:text="translated" />
 
     <RelativeLayout
         android:layout_width="fill_parent"

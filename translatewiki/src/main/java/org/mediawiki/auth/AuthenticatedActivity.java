@@ -1,9 +1,5 @@
 package org.mediawiki.auth;
 
-import java.io.IOException;
-
-import net.translatewiki.app.R;
-
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.accounts.AccountManagerFuture;
@@ -13,7 +9,10 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 
 import com.actionbarsherlock.app.SherlockActivity;
-import com.actionbarsherlock.app.SherlockFragmentActivity;
+
+import net.translatewiki.app.R;
+
+import java.io.IOException;
 
 public class AuthenticatedActivity extends SherlockActivity {
     

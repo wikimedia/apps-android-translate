@@ -5,10 +5,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-
-import java.util.List;
+import android.widget.TextView;
 
 /**
  * Created by orsa on 5/8/13.
@@ -24,7 +21,6 @@ public class MessageAdapter extends Message {
     private boolean committed;             // indicates the user sent translation, and not in edit mode.
     public String savedInput;              // to hold the input text so it won't disappear on refresh
 
-    //CTOR
     public MessageAdapter(Context context, String key, String mTitle, String mGrupe, String lang, String definition, String translation, String revision, int mAcceptCount, int mState) {
         super(key, mTitle, mGrupe, lang, definition, translation, revision, mAcceptCount, mState);
 
@@ -53,6 +49,7 @@ public class MessageAdapter extends Message {
         this.committed = committed;
     }
 
+
     /**
      * handles the way suggestions are reflected for the UI
      */
@@ -66,13 +63,10 @@ public class MessageAdapter extends Message {
         }
 
         @Override
-        public int getViewTypeCount (){
-            return 2;
-        }
+        public int getViewTypeCount (){ return 2; }
 
         @Override
         public int getItemViewType (int position){
-
             if (position==getCount()-1)
                 return 1;
             else
@@ -87,16 +81,23 @@ public class MessageAdapter extends Message {
         @Override
         // handles how line number "position" will look like.
         public View getView(int position, View convertView, ViewGroup parent) {
-
             View v;
             if (position == getCount()-1){
                 // means it's the last line. we populate it with input area
 
-                return convertView!=null ? convertView
+                v = convertView!=null ? convertView
                                          : ((MainActivity)getContext()).getViewForInput(parent, m);
             }
-            //else
-            return super.getView(position,convertView,parent); // the usual, just use "listitem_suggestion"
+            else
+            {
+                v = super.getView(position,convertView,parent); // the usual, just use "listitem_suggestion"
+                TextView tv = (TextView) v.findViewById(R.id.lblSuggestionText);
+                int y1 = tv.getLineCount() * tv.getLineHeight();
+                int y2 = tv.getHeight();
+                int y3 = tv.getMeasuredHeight();
+            }
+
+            return v;
         }
     }
 }

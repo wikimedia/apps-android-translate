@@ -1,8 +1,10 @@
 package net.translatewiki.app;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.TypedArray;
 import android.preference.DialogPreference;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Pair;
@@ -17,12 +19,11 @@ import android.widget.SearchView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by orsa on 20/8/13.
  */
-public abstract class SearchableListPreference extends DialogPreference {
+public abstract class SearchableListPreference extends DialogPreference implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     ItemListAdapter itemListAdapter;
     SearchView sv;
@@ -31,6 +32,7 @@ public abstract class SearchableListPreference extends DialogPreference {
 
     public abstract boolean showRefreshBtn();
     public abstract PairList getListForSection(int section);
+    public abstract int getSizeOfSection(int section);
     public abstract String getDefaultValue();
     public abstract Integer getNumberOfSections();
     public void onClickRefresh() {}
@@ -39,6 +41,7 @@ public abstract class SearchableListPreference extends DialogPreference {
         super(context, attrs);
         String currentVal = getPersistedString(getDefaultValue());
         itemListAdapter = new ItemListAdapter(context,currentVal);
+        PreferenceManager.getDefaultSharedPreferences(context).registerOnSharedPreferenceChangeListener(this);
     }
 
     protected List<String> extractEntries(){
@@ -130,6 +133,7 @@ public abstract class SearchableListPreference extends DialogPreference {
         itemListAdapter.getFilter().filter("");
         lv.clearTextFilter();
         itemListAdapter.notifyDataSetChanged();
+        itemListAdapter.setSelectedEntry(getPersistedString(getDefaultValue()));
     }
 
     @Override
@@ -150,14 +154,15 @@ public abstract class SearchableListPreference extends DialogPreference {
         return s;
     }
 
-
     @Override
     protected void onDialogClosed(boolean positiveResult) {
         // When the user selects "OK", persist the new value
         if (positiveResult) {
             String selEnt = itemListAdapter.selectedEntry;
             String s = getValueOfEntry(selEnt);
-            persistString(s);
+            if (s!=null){
+                persistString(s);
+            }
         }
         sv.getOnFocusChangeListener().onFocusChange(sv,false);
     }
@@ -185,11 +190,10 @@ public abstract class SearchableListPreference extends DialogPreference {
                     R.layout.list_pref_item,
                     R.id.list_item_radioButton,
                     extractEntries());
-                    setSelectedEntry(selectedVal); //TODO: uncomment!
-                    for (int i=0; i<getNumberOfSections();i++)
-                    {
-                        filteredInSec[i] = getListForSection(i).size();
-                    }
+            for (int i=0; i<getNumberOfSections();i++)
+            {
+                filteredInSec[i] = -1;
+            }
         }
 
         @Override
@@ -205,12 +209,12 @@ public abstract class SearchableListPreference extends DialogPreference {
             assert v != null;
             RadioButton b = (RadioButton)v.findViewById(R.id.list_item_radioButton);
             if (b!=null)
-                b.setChecked(getItem(position) == selectedEntry);
+                b.setChecked(getItem(position).equals(selectedEntry));
 
             ImageView img = (ImageView)v.findViewById(R.id.specialImg);
             if (img!=null)
-                if (position<filteredInSec[0]+filteredInSec[1]){
-                    img.setImageResource( position<filteredInSec[0]
+                if (position<getFilteredSizeOfSection(0)+getFilteredSizeOfSection(1)){
+                    img.setImageResource( position<getFilteredSizeOfSection(0)
                                         ? android.R.drawable.ic_menu_recent_history
                                         : R.drawable.local);
                     img.setVisibility(View.VISIBLE);
@@ -221,15 +225,16 @@ public abstract class SearchableListPreference extends DialogPreference {
             return v;
         }
 
-        public void setSelectedEntry(String s){
+        public String setSelectedEntry(String s){
             for (int i=0; i<getNumberOfSections(); i++){
                 for (Pair<String, String> pair : getListForSection(i)) {
-                    if (s==pair.second) {
+                    if (s.equals(pair.second)) {
                         selectedEntry = pair.first;
-                        return;
+                        return selectedEntry;
                     }
                 }
             }
+            return "";
         }
 
         @Override
@@ -260,7 +265,7 @@ public abstract class SearchableListPreference extends DialogPreference {
                         result.count = found.size();
                     }else {
                         for (int i=0; i<getNumberOfSections(); i++) {
-                            filteredInSec[i]=getListForSection(i).size();
+                            filteredInSec[i]=-1;
                         }
                         result.values = entries;
                         result.count = entries.size();
@@ -277,6 +282,10 @@ public abstract class SearchableListPreference extends DialogPreference {
                     notifyDataSetChanged();
                 }
             };
+        }
+
+        public int getFilteredSizeOfSection(int i){
+            return (filteredInSec[i]==-1 ? getSizeOfSection(i) : filteredInSec[i]);
         }
     }
 }
