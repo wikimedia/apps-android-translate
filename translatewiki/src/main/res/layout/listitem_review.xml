@@ -49,7 +49,7 @@
 
     <TextView
         android:id="@+id/lblTranslatedText"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
@@ -58,7 +58,10 @@
         android:textColor="#252525"
         android:textStyle="bold"
         android:textSize="12sp"
-        android:text="translated" />
+        android:text="translated"
+        android:autoLink="none"
+        android:gravity="left"
+        android:textAlignment="gravity"/>
 
     <RelativeLayout
         android:layout_width="fill_parent"

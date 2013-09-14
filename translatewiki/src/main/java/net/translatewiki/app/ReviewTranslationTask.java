@@ -1,12 +1,29 @@
+/*
+ * @(#)TranslateWikiApp       1.0 15/9/2013
+ *
+ *  Copyright (c) 2013 Or Sagi.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+
 package net.translatewiki.app;
 
 import android.app.Activity;
 import android.os.AsyncTask;
-import android.util.Log;
 import android.widget.Toast;
 
 import org.mediawiki.api.ApiResult;
-import org.mediawiki.auth.Utils;
 
 import java.io.IOException;
 
@@ -39,19 +56,19 @@ public class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
             if(!app.getApi().validateLogin()) {
                 if(app.revalidateAuthToken()) {
                     // Validated!
-                    Log.d("TWN", "VALIDATED!");
+                    // Log.d("TWN", "VALIDATED!"); // DEBUG
                 } else {
-                    Log.d("TWN", "Invalid :(");
+                    // Log.d("TWN", "Invalid :("); // DEBUG
                     throw new RuntimeException();
                 }
             }
             if(MainActivity.reviewToken == null || MainActivity.reviewToken.length()==0) {
                 ApiResult tokenResult;
                 tokenResult = app.getApi().action("tokens").param("type", "translationreview").post();
-                Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument()));
+                //Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument())); // DEBUG
 
                 MainActivity.reviewToken = tokenResult.getString("/api/tokens/@translationreviewtoken");
-                Log.d("TWN", "Token is " + MainActivity.reviewToken);
+                //Log.d("TWN", "Token is " + MainActivity.reviewToken); // DEBUG
 
                 if (MainActivity.reviewToken==null ||MainActivity.reviewToken.length()==0)
                 {
@@ -67,7 +84,7 @@ public class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
             ApiResult reviewResult = app.getApi().action("translationreview")
                     .param("revision", message.getRevision())
                     .param("token", MainActivity.reviewToken).post();
-            Log.d("TWN", Utils.getStringFromDOM(reviewResult.getDocument()));
+            //Log.d("TWN", Utils.getStringFromDOM(reviewResult.getDocument())); // DEBUG
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
