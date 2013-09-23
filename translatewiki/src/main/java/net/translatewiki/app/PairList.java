@@ -25,40 +25,61 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by orsa on 5/9/13.
+ * A list of pairs \<key,value\>
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
 public class PairList extends ArrayList<Pair<String, String>> {
 
+    /**
+     * @return List of all keys in this PairList.
+     */
     public List<String> getEntries(){
-
         List<String> list = new ArrayList<String>();
-        for(Pair<String, String> pair : this){
+        for(Pair<String, String> pair : this) {
             list.add(pair.first);
         }
         return list;
     }
 
+    /**
+     * @return List of all values in this PairList.
+     */
     public List<String> getValues(){
 
         List<String> list = new ArrayList<String>();
-        for(Pair<String, String> pair : this){
+        for(Pair<String, String> pair : this) {
             list.add(pair.second);
         }
         return list;
     }
 
-    public String getValueOfEntry(String s){
+    /**
+     * lookup for a value for a specified entry.
+     *
+     * @param entry key to lookup
+     * @return the value related to the specified entry, or null if does not exist.
+     */
+    public String getValueOfEntry(String entry){
         for (Pair<String, String> pair : this) {
-            if (s.equals(pair.first)) {
+            if (entry.equals(pair.first)) {
                 return pair.second;
             }
         }
         return null;
     }
 
-    public String getEntryOfValue(String s){
+    /**
+     * lookup for an entry for a specified value.
+     *
+     * @param value value to lookup
+     * @return the first entry related to the specified value, or null if does not exist.
+     */
+    public String getEntryOfValue(String value){
         for (Pair<String, String> pair : this) {
-            if (s.equals(pair.second)) {
+            if (value.equals(pair.second)) {
                 return pair.first;
             }
         }

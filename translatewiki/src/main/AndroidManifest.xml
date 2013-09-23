@@ -21,15 +21,20 @@
         android:icon="@drawable/ic_launcher"
         android:logo="@drawable/ic_logo_small"
         android:label="@string/app_name"
-        android:theme="@style/AppBaseTheme" >
+        android:theme="@style/AppBaseTheme">
+
         <activity
             android:name="org.mediawiki.auth.LoginActivity"
             android:label="@string/title_activity_login"
-            android:theme="@style/NoTitle" >
+            android:theme="@style/NoTitle"
+            >
+
         </activity>
         <activity
             android:name="net.translatewiki.app.MainActivity"
-            android:label="@string/title_activity_main" >
+            android:label="@string/title_activity_main"
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -37,7 +42,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="net.translatewiki.app.SettingsActivity"
+            android:name=".TWPreferenceActivity"
             android:label="@string/title_activity_settings" >
         </activity>
         <service

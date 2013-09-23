@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="actionbar">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/translatewiki/libs/actionbar" />
+      <root url="file://$PROJECT_DIR$/translatewiki/libs/actionbar" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -22,74 +22,146 @@ package net.translatewiki.app;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
 /**
- * Created by orsa on 5/8/13.
+ * A message for translation or proofread, adapted for use as an AdapterView object
+ * by keeping its state
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
-
-
 public class MessageAdapter extends Message {
 
-    public SuggestionListAdapter suggestionsAdapter;
-    public AdapterView suggestionsAdapterView;
+    /** enumeration of a message states */
+    public enum State { UNDEFINED, PROOFREAD, TRANSLATE }
 
+    private SuggestionListAdapter suggestionsAdapter;
+
+    /** specifies general state for message. */
+    private State    mState;
+
+    /** tells whether this message requires showing it's info. */
     private boolean infoNeedShown;
-    private boolean committed;             // indicates the user sent translation, and not in edit mode.
-    public String savedInput;              // to hold the input text so it won't disappear on refresh
 
-    public MessageAdapter(Context context, String key, String mTitle, String mGrupe, String lang, String definition, String translation, String revision, int mAcceptCount, int mState) {
-        super(key, mTitle, mGrupe, lang, definition, translation, revision, mAcceptCount, mState);
+    /** indicates the user submitted a translation, and not in edit mode. */
+    private boolean committed;
 
-        infoNeedShown=false;
-        committed=false;
+    /** the input text from the user */
+    private String savedInput;
+
+    public MessageAdapter(Context context, String key, String mTitle, String mGrupe,
+                          String  lang, String definition, String translation, String revision,
+                          int mAcceptCount, State  mState) {
+        super(key, mTitle, mGrupe, lang, definition, translation, revision, mAcceptCount);
+        this.mState = mState;
+        infoNeedShown = false;
+        committed = false;
         suggestionsAdapter = new SuggestionListAdapter(context,this);
     }
 
+    /**
+     * @return suggestions adapter for this message.
+     */
+    public SuggestionListAdapter getSuggestionsAdapter() {
+        return suggestionsAdapter;
+    }
+
+    /**
+     * @param suggestionsAdapter  suggestions adapter for this message.
+     */
+    public void setSuggestionsAdapter(SuggestionListAdapter suggestionsAdapter) {
+        this.suggestionsAdapter = suggestionsAdapter;
+    }
+
+    /**
+     * @return the state of the message.
+     */
+    public State getmState() {
+        return mState;
+    }
+
+    /**
+     * @param mState state of the message.
+     */
+    public void setmState(State mState) {
+        this.mState = mState;
+    }
+
+    /**
+     * @return true iff info display is required.
+     */
     public boolean isInfoNeedShown() {
         return infoNeedShown;
     }
 
+    /**
+     * @param infoNeedShown true iff info display is required.
+     */
     public void setInfoNeedShown(boolean infoNeedShown) {
         this.infoNeedShown = infoNeedShown;
     }
 
+    /**
+     * flip 'info display required' to the opposite value
+     */
     public void flipInfo() {
         setInfoNeedShown(!infoNeedShown);
     }
 
+    /**
+     * @return true iff the user submitted a translation, and not reopened for edit.
+     */
     public boolean isCommitted() {
         return committed;
     }
 
+    /**
+     * @param committed  true iff the user submitted a translation, and not reopened for edit.
+     */
     public void setCommitted(boolean committed) {
         this.committed = committed;
     }
 
+    /**
+     * @return the input text from the user.
+     */
+    public String getSavedInput() {
+        return savedInput;
+    }
 
     /**
-     * handles the way suggestions are reflected for the UI
+     * @param savedInput  the input text from the user.
+     */
+    public void setSavedInput(String savedInput) {
+        this.savedInput = savedInput;
+    }
+
+    /**
+     * Adapter for suggestions list, handles the way suggestions are reflected for the UI
+     *
+     * @author      Or Sagi
+     * @version     %I%, %G%
+     * @since       1.0
      */
     public class SuggestionListAdapter extends ArrayAdapter<String> {
 
-        private MessageAdapter m;
+        /* the mesage related to this suggestions */
+        private MessageAdapter msg;
 
-        public SuggestionListAdapter(Context context, MessageAdapter m ) {
-            super(context, R.layout.listitem_suggestion,R.id.lblSuggestionText,m.getSuggestionsList());
-            this.m = m;
+        public SuggestionListAdapter(Context context, MessageAdapter msg) {
+            super(context, R.layout.listitem_suggestion,R.id.lblSuggestionText, msg.getSuggestionsList());
+            this.msg = msg;
         }
 
         @Override
-        public int getViewTypeCount (){ return 2; }
+        public int getViewTypeCount () { return 2; }
 
         @Override
-        public int getItemViewType (int position){
-            if (position==getCount()-1)
-                return 1;
-            else
-                return 0;
+        public int getItemViewType (int position) {
+            return (position == getCount() - 1) ? 1 : 0; // two types: "last item"-1 or "anything else"-0
         }
 
         @Override
@@ -97,26 +169,20 @@ public class MessageAdapter extends Message {
             return super.getCount()+1; //room for one more cell which is the input area
         }
 
+        /* handles how line number "position" will look like. */
         @Override
-        // handles how line number "position" will look like.
         public View getView(int position, View convertView, ViewGroup parent) {
-            View v;
-            if (position == getCount()-1){
-                // means it's the last line. we populate it with input area
-
-                v = convertView!=null ? convertView
-                                         : ((MainActivity)getContext()).getViewForInput(parent, m);
+            View view;
+            if (getItemViewType(position) == 1) {  // it's the last line. populate it with input area
+                view = convertView != null
+                       ? convertView
+                       : ((MainActivity)getContext()).getViewForInput(parent, msg);
+            } else {
+                view = super.getView(position,convertView,parent); // the usual, just use "listitem_suggestion"
+                TextView tv = (TextView) view.findViewById(R.id.lblSuggestionText);
+                tv.requestFocusFromTouch();
             }
-            else
-            {
-                v = super.getView(position,convertView,parent); // the usual, just use "listitem_suggestion"
-                TextView tv = (TextView) v.findViewById(R.id.lblSuggestionText);
-                int y1 = tv.getLineCount() * tv.getLineHeight();
-                int y2 = tv.getHeight();
-                int y3 = tv.getMeasuredHeight();
-            }
-
-            return v;
+            return view;
         }
     }
 }

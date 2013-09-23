@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="optionsLayout" type="id">optionsLayout</item>
-    <item name="suggestionsLayout" type="id">suggestionsLayout</item><item name="infoLayout" type="id"/>
-    </resources>
+    <item name="suggestionsLayout" type="id">suggestionsLayout</item>
+    <item name="infoLayout" type="id"/>
+</resources>

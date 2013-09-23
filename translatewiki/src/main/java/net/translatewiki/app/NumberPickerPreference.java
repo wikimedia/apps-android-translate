@@ -26,29 +26,30 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.NumberPicker;
 
+/**
+ * preference which allows picking a number within a defined range.
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
+ */
 public class NumberPickerPreference extends DialogPreference {
 
-    NumberPicker picker;
-    Integer initialValue;
-    Integer minVal;
-    Integer maxVal;
+    private NumberPicker picker;
+    private Integer minVal;       // lowest bound
+    private Integer maxVal;       // highest bound
 
-    public Integer getStep(){ return 1; }
-
-    public NumberPickerPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-
-        setPositiveButtonText("Set");
-        setDialogIcon(null);
-    }
+    protected Integer initialValue; // value to show at the beginning
 
     public NumberPickerPreference(Context context, AttributeSet attrs, Integer minVal, Integer maxVal) {
         super(context, attrs);
         this.minVal = minVal;
         this.maxVal = maxVal;
         setDialogIcon(null);
+        setPositiveButtonText("Set");
     }
 
+    /** {@inheritDoc} */
     @Override
     protected void onBindDialogView(View view) {
         super.onBindDialogView(view);
@@ -58,40 +59,49 @@ public class NumberPickerPreference extends DialogPreference {
         picker.setOnValueChangedListener(new NumberPicker.OnValueChangeListener() {
             @Override
             public void onValueChange(NumberPicker numberPicker, int i, int i2) {
-                if (i+1==i2)
+                if (i+1 == i2)      // translate single increment to a "step".
                     numberPicker.setValue(i+getStep());
-                else if (i==i2+1)
+                else if (i == i2+1) // same for decrement
                     numberPicker.setValue(i-getStep());
             }
         });
-        if (initialValue!=null){
+        if (initialValue != null) {
             picker.setValue(initialValue);
         }
     }
 
+    /** {@inheritDoc} */
     @Override
-    protected void onSetInitialValue(boolean restorePersistedValue, Object defaultValue)
-    {
-        if ( restorePersistedValue ) {
-            int def = ( defaultValue instanceof Number ) ? (Integer)defaultValue
-                    : ( defaultValue != null ) ? Integer.parseInt(defaultValue.toString()) : 1;
+    protected void onSetInitialValue(boolean restorePersistedValue, Object defaultValue) {
+        if (restorePersistedValue) {
+            int def = (defaultValue instanceof Number)
+                      ? (Integer)defaultValue
+                      : (defaultValue != null) ? Integer.parseInt(defaultValue.toString()) : 1;
             initialValue = getPersistedInt(def);
+        } else {
+            initialValue = (Integer)defaultValue;
         }
-        else initialValue = (Integer)defaultValue;
     }
 
+    /** {@inheritDoc} */
     @Override
     protected Object onGetDefaultValue(TypedArray a, int index) {
-        int val = a.getInt(index, 1);
-        return val;
+        return a.getInt(index, 1);
     }
 
+    /** {@inheritDoc} */
     @Override
     protected void onDialogClosed(boolean positiveResult) {
+
         // When the user selects "OK", persist the new value
         if (positiveResult) {
             int val = picker.getValue();
             persistInt(val);
         }
     }
+
+    /**
+     * @return the step size to perform in each increment/decrement.
+     */
+    public Integer getStep(){ return 1; } // default is 1 unless overridden
 }

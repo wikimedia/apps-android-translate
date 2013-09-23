@@ -5,6 +5,7 @@
                 android:background="#fbfbfb"
                 android:layout_margin="0dp"
                 android:focusable="false"
+                android:focusableInTouchMode="false"
                 >
                 <ListView
                     android:id="@+id/listTranslations"
@@ -15,7 +16,8 @@
                     android:dividerHeight="12dp"
                     android:background="#fbfbfb"
                     android:layout_margin="12dp"
-                    android:focusable="false">
-
-                </ListView>
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:descendantFocusability="afterDescendants"
+                />
 </RelativeLayout>

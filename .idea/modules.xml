@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/translatewiki/translatewiki.iml" filepath="$PROJECT_DIR$/translatewiki/translatewiki.iml" />
+      <module fileurl="file://$PROJECT_DIR$/translatewikiProject.iml" filepath="$PROJECT_DIR$/translatewikiProject.iml" />
+    </modules>
+  </component>
+</project>
+

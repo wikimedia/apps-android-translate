@@ -7,8 +7,8 @@
     android:padding="0dp"
     android:focusable="false"
     android:tag="pr"
-    android:background="@drawable/message_display">
-
+    android:background="@drawable/message_display"
+    >
 
     <LinearLayout
         android:layout_width="fill_parent"
@@ -31,20 +31,20 @@
             android:layout_weight="9"
             android:autoLink="none"
             android:gravity="left"
-            android:textAlignment="gravity" />
-
+            android:textAlignment="gravity"
+        />
         <ImageButton
-                style="?android:attr/buttonStyleSmall"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:id="@+id/btnEdit"
-                android:src="@drawable/edit_new"
-                android:background="@android:color/transparent"
-                android:scaleType="centerCrop"
-                android:layout_centerVertical="true"
-                android:layout_toRightOf="@+id/imageView"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:id="@+id/btnEdit"
+            android:src="@drawable/edit_new"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@+id/imageView"
             android:layout_gravity="right|top"
-             />
+        />
     </LinearLayout>
 
     <TextView
@@ -61,7 +61,8 @@
         android:text="translated"
         android:autoLink="none"
         android:gravity="left"
-        android:textAlignment="gravity"/>
+        android:textAlignment="gravity"
+    />
 
     <RelativeLayout
         android:layout_width="fill_parent"
@@ -91,7 +92,8 @@
             android:src="@drawable/accept_new"
             android:layout_alignParentLeft="true"
             android:layout_toLeftOf="@+id/imageView"
-            android:layout_marginRight="5dp" />
+            android:layout_marginRight="5dp"
+        />
 
         <TextView
             android:layout_width="wrap_content"
@@ -105,21 +107,23 @@
             android:padding="0dp"
             android:layout_marginRight="50dp"
             android:layout_alignBottom="@+id/btnAccept"
-            android:layout_alignRight="@+id/btnAccept" />
+            android:layout_alignRight="@+id/btnAccept"
+        />
 
         <ImageView
-                android:id="@+id/imageView"
-                android:layout_width="2dp"
-                android:layout_height="34dp"
-                android:paddingBottom="0dp"
-                android:paddingLeft="16dp"
-                android:paddingRight="16dp"
-                android:paddingTop="0dp"
-                android:scaleType="fitXY"
-                android:src="@android:drawable/divider_horizontal_bright"
-                android:padding="0dp"
-                android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"/>
+            android:id="@+id/imageView"
+            android:layout_width="2dp"
+            android:layout_height="34dp"
+            android:paddingBottom="0dp"
+            android:paddingLeft="16dp"
+            android:paddingRight="16dp"
+            android:paddingTop="0dp"
+            android:scaleType="fitXY"
+            android:src="@android:drawable/divider_horizontal_bright"
+            android:padding="0dp"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+        />
 
         <ImageButton
             android:id="@+id/btnReject"
@@ -136,8 +140,7 @@
             android:src="@drawable/reject_new"
             android:background="@android:color/transparent"
             android:layout_toRightOf="@+id/imageView"
-            android:layout_marginLeft="5dp" />
-
+            android:layout_marginLeft="5dp"
+        />
     </RelativeLayout>
-
 </LinearLayout>

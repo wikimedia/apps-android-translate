@@ -30,26 +30,29 @@ import java.util.ArrayList;
 
 /**
  * Handles the task of getting helpers (suggestions and documentation).
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
-public class FetchHelpersTask extends AsyncTask<Void, Void, Void> {
+public class FetchHelpersTask extends AsyncTask<Void, Void, String> {
 
-    public MessageAdapter m;
+    private MessageAdapter msg;
     private Activity context;
 
-    // CTOR
-    public FetchHelpersTask(Activity context, MessageAdapter m) {
-        this.m = m;
+    public FetchHelpersTask(Activity context, MessageAdapter msg) {
+        this.msg = msg;
         this.context = context;
     }
 
     @Override
-    protected Void doInBackground(Void... params) {
+    protected String doInBackground(Void... params) {
         MWApi api = ((MainActivity)context).getApp().getApi();
         ApiResult result;
         try { // send API request
             result = api.action("translationaids")
-                    .param("title", m.getmTitle())
-                    .param("group", m.getmGrupe())                // project
+                    .param("title", msg.getmTitle())
+                    .param("group", msg.getmGroup())              // project
                     .param("prop", "mt|ttmserver|documentation")  // info to get
                     .post();
         } catch (IOException e) {
@@ -57,7 +60,7 @@ public class FetchHelpersTask extends AsyncTask<Void, Void, Void> {
             return null;
         }
 
-        m.clearSuggestions();
+        msg.clearSuggestions();
         int count = 0;
 
         // extracts suggestions
@@ -65,36 +68,34 @@ public class FetchHelpersTask extends AsyncTask<Void, Void, Void> {
         //Log.d("TWN", "Actual result is" + Utils.getStringFromDOM(result.getDocument())); // DEBUG
 
         String s;
-        // insert suggestions with not longer than "MAX_LENGTH_FOR_SUGGESTION",
+        // insert suggestions with not longer than "MAX_SUGGESTION_LENGTH",
         // (too long suggestion is empirically bad suggestion)
         // but no more than "MAX_NO_SUGGESTIONS"
-        for(ApiResult packedSuggestion: packedSuggestions)
-        {
-            if (count<MainActivity.MAX_NO_SUGGESTIONS){
+        for(ApiResult packedSuggestion : packedSuggestions) {
+            if (count< TranslateWikiApp.MAX_NO_SUGGESTIONS) {
                 s = packedSuggestion.getString("@target");
-                if (s.length()>MainActivity.MAX_LENGTH_FOR_SUGGESTION)
+                if (s.length() > TranslateWikiApp.MAX_SUGGESTION_LENGTH)
                     continue;
 
                 //Log.d("TWN", "suggestion is" + s); // DEBUG
-                if(m.addSuggestion(s)) // this call also makes sure no to add duplicates
+                if(msg.addSuggestion(s)) // this call also makes sure no to add duplicates
                     count++;
             } else break;
         }
 
-        // insert suggestions with not longer than "MAX_LENGTH_FOR_SUGGESTION",
-        // with a quality of at least "MIN_QUALITY_FOR_SUGGESTION",
+        // insert suggestions with not longer than "MAX_SUGGESTION_LENGTH",
+        // with a quality of at least "MIN_SUGGESTION_QUALITY",
         // but no more than "MAX_NO_SUGGESTIONS"
         ArrayList<ApiResult> packedTtms = result.getNodes("/api/helpers/ttmserver/suggestion");
-        for(ApiResult packedSuggestion: packedTtms)
-        {
-            if (count<MainActivity.MAX_NO_SUGGESTIONS){
-                if (packedSuggestion.getNumber("@quality") < MainActivity.MIN_QUALITY_FOR_SUGGESTION)
+        for(ApiResult packedSuggestion: packedTtms) {
+            if (count< TranslateWikiApp.MAX_NO_SUGGESTIONS) {
+                if (packedSuggestion.getNumber("@quality") < TranslateWikiApp.MIN_SUGGESTION_QUALITY)
                     continue;
                 s = packedSuggestion.getString("@target");
-                if (s.length()>MainActivity.MAX_LENGTH_FOR_SUGGESTION)
+                if (s.length() > TranslateWikiApp.MAX_SUGGESTION_LENGTH)
                     continue;
                 //Log.d("TWN", "suggestion is" + s); // DEBUG
-                if (m.addSuggestion(s)) // this call also makes sure no to add duplicates
+                if (msg.addSuggestion(s)) // this call also makes sure no to add duplicates
                     count++;
             } else break;
         }
@@ -109,14 +110,14 @@ public class FetchHelpersTask extends AsyncTask<Void, Void, Void> {
         // similar usage examples. we are not interested in this tail, for now.
 
         //Log.d("TWN", "doc is: " + doc); // DEBUG
-        m.setDocumentation(doc);
-        return null;
+        return doc;
     }
 
     @Override
-    protected void onPostExecute(Void v) {
-        super.onPostExecute(v);
-        ((MainActivity)context).postFetchHelpers(m);
+    protected void onPostExecute(String doc) {
+        super.onPostExecute(doc);
+        msg.setDocumentation(doc);
+        ((MainActivity)context).postFetchHelpers(msg);
     }
 }
 

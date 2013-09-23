@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <resources>
-	<drawable name="ab_bg_black">#aa000000</drawable>
+    <drawable name="ab_bg_black">#aa000000</drawable>
     <drawable name="menu_color">#3366bb</drawable>
     <drawable name="infoview_color">#fbfbfb</drawable>
 </resources>

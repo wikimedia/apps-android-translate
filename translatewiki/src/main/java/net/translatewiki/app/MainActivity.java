@@ -25,6 +25,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Build;
 import android.os.Bundle;
@@ -62,25 +63,25 @@ import org.mediawiki.auth.MWApiApplication;
 import org.mediawiki.auth.Utils;
 
 /**
- * This class Handles the main activity of the app and holds it's global attributes.
+ * The main activity of the app. It does most of the work in one of the two
+ * states: Proofread or Translate
  *
- * @version 1.0 15 Sept 2013
- * @author Or Sagi
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
 public class MainActivity extends AuthenticatedActivity {
 
-    // hard-coded properties.
-    public static final int     MAX_LENGTH_FOR_SUGGESTION  = 100;
-    public static final int     MAX_NO_SUGGESTIONS         = 3;
-    public static final int     MAX_NO_FETCH_TRIALS        = 3;
-    public static final Double  MIN_QUALITY_FOR_SUGGESTION = 0.9;
+    public enum State {
+        UNDEFINED, PROOFREAD, TRANSLATE;
+    }
 
     // global properties:
-    public static int       CURRENT_STATE   = 1;    // 1 - proofread    2 - translate
-    public static String    CUR_LANG        = "en";
-    public static String    CUR_PROJECT     = "!recent";
-    public static Integer   FETCH_SIZE      = 6;
-    public static int       MAX_LENGTH_FOR_MESSAGE = 100;
+    public static State     CURRENT_STATE = State.PROOFREAD;    // 1 - proofread   2 - translate
+    public static String    CUR_LANG    ;
+    public static String    CUR_PROJECT ;
+    public static Integer   FETCH_SIZE  ;
+    public static int       MAX_MESSAGE_LENGTH;
 
     public  static RejectedMsgDbHelper mDbHelper      = null; // database helper for rejected messages
     public  static MessageListAdapter  translations   = null; // a data controller for the messages
@@ -89,16 +90,97 @@ public class MainActivity extends AuthenticatedActivity {
     public  static String              translateToken = null;
     public  static ListView            msgListView    = null;
     public  static Integer             offset         = 0;    // the offset index to fetch from server
+    public  static MainActivity        that;
+
     private static Intent              staticIntent   = null;
 
-    private        int     selected = -1;
+    private int     selected    = -1;     // define the selected message index, or -1 if no such.
 
-    public MWApiApplication getApp(){ return app; }
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        that = this;
+        Bundle extras =  getIntent().getExtras();
+        if (extras != null && extras.getBoolean("should_logout_first")) {
+            getApp().setCurrentAccount(null);
+            Intent i = new Intent(this, LoginActivity.class);
+            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_HISTORY);
+            i.putExtra("should_logout_first",true);
+            startActivity(i);
+            finish();
+            return;
+        }
+        staticIntent = getIntent();
+        requestAuthToken();
 
+        layoutInflater = getLayoutInflater();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) { // for later versions only
+            getActionBar().setBackgroundDrawable(getResources().getDrawable(R.drawable.menu_color));
+        }
+        setContentView(net.translatewiki.app.R.layout.activity_main);
+        selected = 0; // first row is selected at the beginning
+        translations = new MessageListAdapter(this, 0);
+        msgListView = (ListView) findViewById(net.translatewiki.app.R.id.listTranslations);
+        msgListView.setAdapter(translations);
+
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        CURRENT_STATE = State.values()
+                [(sharedPref.getInt(getString(R.string.state_key), CURRENT_STATE.ordinal()))];
+        setTitle(CURRENT_STATE == State.PROOFREAD ? "Proofread" : "Translate");
+
+        // bind action when clicking on cells
+        msgListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                if (i == adapterView.getCount() - 1) { //in case "more" is clicked
+                    fetchTranslations();
+                } else if (view.getTag().equals("cm")) {
+                    ((MessageAdapter)adapterView.getItemAtPosition(i)).setCommitted(false);   // because we move to edit mode
+                    translations.notifyDataSetChanged();
+                } else if (view.getTag().equals("pr")) {
+
+                    //deselect the previous one if visible
+                    int lowBound = adapterView.getFirstVisiblePosition();
+                    int highBound = adapterView.getLastVisiblePosition();
+                    if (selected >= lowBound && selected <= highBound) {
+                        View previous = adapterView.getChildAt(selected-lowBound);
+                        if (previous != null) {
+                            previous.findViewById(R.id.optionsLayout).setVisibility(View.GONE);
+                            previous.findViewById(R.id.btnEdit).setVisibility(View.GONE);
+                        }
+                    }
+                    selected = (selected == i) ? -1 : i;  //if already selected - deselect, otherwise move to selected.
+
+                    // show accept/reject only for selected cell.
+                    view.findViewById(R.id.optionsLayout).setVisibility( selected == i ? View.VISIBLE
+                                                                                       : View.GONE);
+                    view.findViewById(R.id.btnEdit).setVisibility( selected == i ? View.VISIBLE
+                                                                                 : View.GONE);
+                }
+            }
+        });
+    }
+
+    /**
+     *
+     * @return static instance of the {@link MWApiApplication}
+     */
+    public MWApiApplication getApp() { return app; }
+
+    /**
+     *
+     * @return static instance of this activity's Intent, useful to push
+     * some data from other activities.
+     */
     public static Intent getStaticIntent() { return staticIntent; }
 
-    public void postFetchHelpers(MessageAdapter m) {
-        int mPosition = MainActivity.translations.getPosition(m);
+    /**
+     * helper for action when helpers (suggestions and documentation) are pushed.
+     *
+     * @param msg a message which the helpers belong to.
+     */
+    public void postFetchHelpers(MessageAdapter msg) {
+        int mPosition = MainActivity.translations.getPosition(msg);
         int minPos = MainActivity.msgListView.getFirstVisiblePosition();
         int maxPos = MainActivity.msgListView.getLastVisiblePosition();
         if (mPosition>=minPos && mPosition<=maxPos) {
@@ -106,6 +188,9 @@ public class MainActivity extends AuthenticatedActivity {
         }
     }
 
+    /**
+     * make the heavy table update happen on UI Thread.
+     */
     public void notifyTranslationsOnNewThread() {
         new Thread() { //this allows the UI update the messagelist at the background.
             public void run() {
@@ -120,7 +205,7 @@ public class MainActivity extends AuthenticatedActivity {
     }
 
     /**
-     * handles the way messages data-store is reflected at the UI
+     * Array adapter which handles the way messages data-store is reflected at the UI
      *
      * @version 1.0 15 Sept 2013
      * @author Or Sagi
@@ -131,34 +216,39 @@ public class MainActivity extends AuthenticatedActivity {
             super(context, textViewResourceId);
         }
 
-        // 'getViewTypeCount' and 'getItemViewType' help the ListAdapter to reuse objects
-        // and therefore save performance impact
+        /* 'getViewTypeCount' and 'getItemViewType' improves object reuse and performance. */
+
+        /**  {@inheritDoc} */
         @Override
         public int getViewTypeCount () { return 4; }
 
+        /**  {@inheritDoc} */
         @Override
         public int getItemViewType (int position) {
-            if (position==getCount()-1) { return 3; }   // 'more' button
+            if (position == getCount()-1)                        { return 3; } // 'more' button
             MessageAdapter m = getItem(position);
-            if (m.getmState()==1) { return 0; }         // proofread message
-            if (m.isCommitted())  { return 2; }         // committed translation
-            else                  { return 1; }         // translation message
+            if (m.getmState() == MessageAdapter.State.PROOFREAD) { return 0; } // proofread message
+            if (m.isCommitted())                                 { return 2; } // committed translation
+            else                                                 { return 1; } // translation message
         }
 
+        /**  {@inheritDoc} */
         @Override
         public int getCount() {
-            return super.getCount()+1; //room for one more cell contains: "More"
+            return super.getCount() + 1; //room for one more cell contains: "More"
         }
 
+        /**  {@inheritDoc} */
         @Override
-        // handles how line number "position" will look like.
         public View getView(int position, View convertView, ViewGroup parent) {
-            View v = null;
+            /* handles how line number "position" will look like */
+
+            View v = convertView;
             TextView lblSourceText = null;
             int viewType = getItemViewType(position);
-            final MessageAdapter m = (viewType < 3) ? this.getItem(position) : null ;
+            final MessageAdapter msg = (viewType < 3) ? this.getItem(position) : null ;
 
-            if (convertView==null) {
+            if (convertView == null) {
 
                 // inflate the right view
                 switch (viewType) {
@@ -175,13 +265,11 @@ public class MainActivity extends AuthenticatedActivity {
                         v = layoutInflater.inflate(R.layout.listitem_more, parent,false);
                         break;
                 }
-            } else {
-                v = convertView;
             }
 
-            if (viewType<2) {
+            if (viewType < 2) {
                 lblSourceText = (TextView) v.findViewById(R.id.lblSourceText);
-                lblSourceText.setText(m.getDefinition());
+                lblSourceText.setText(msg.getDefinition());
             }
 
             switch (viewType) {
@@ -190,34 +278,32 @@ public class MainActivity extends AuthenticatedActivity {
                     // get all the relevant components
                     TextView lblTranslatedText = (TextView) v.findViewById(R.id.lblTranslatedText);
                     TextView lblAcceptText     = (TextView) v.findViewById(R.id.lblAcceptText);
-                    if (m.getLang().equals("he") || m.getLang().equals("ar")) {
-                        lblTranslatedText.setGravity(Gravity.RIGHT);
-                    } else {
-                        lblTranslatedText.setGravity(Gravity.LEFT);
-                    }
                     View btnReject = v.findViewById(R.id.btnReject);
                     View btnAccept = v.findViewById(R.id.btnAccept);
                     View btnEdit   = v.findViewById(R.id.btnEdit);
+
+                    // check right to left language
+                    lblTranslatedText.setGravity(( msg.getLang().equals("he")
+                                                   || msg.getLang().equals("ar")
+                                                   || msg.getLang().equals("yi"))
+                                                 ? Gravity.RIGHT // if LTR language
+                                                 : Gravity.LEFT);
 
                     // bind action for reject
                     btnReject.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            //add to rejected messages DB
-                            if (mDbHelper==null)
-                                mDbHelper = new RejectedMsgDbHelper(getContext());
 
-                            // Gets the data repository in write mode
-                            SQLiteDatabase db = mDbHelper.getWritableDatabase();
+                            //add to rejected messages DB
+                            SQLiteDatabase db = getmDbHelper().getWritableDatabase();
 
                             // Create a new map of values, where column names are the keys
                             ContentValues values = new ContentValues();
-                            values.put(RejectedMsgDbHelper.MsgEntry.COLUMN_NAME_ENTRY_ID,m.getRevision());
+
                             // save only revision number.
-
+                            values.put(RejectedMsgDbHelper.MsgEntry.COLUMN_NAME_ENTRY_ID,msg.getRevision());
                             if (db!=null) db.insert(RejectedMsgDbHelper.MsgEntry.TABLE_NAME, null,  values);
-
-                            translations.remove(m);
+                            translations.remove(msg);
                         }
                     });
 
@@ -225,8 +311,8 @@ public class MainActivity extends AuthenticatedActivity {
                     btnEdit.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            m.setmState(2);
-                            new FetchHelpersTask((Activity)getContext(),m).execute();
+                            msg.setmState(MessageAdapter.State.TRANSLATE);
+                            new FetchHelpersTask((Activity)getContext(),msg).execute();
                             translations.notifyDataSetChanged();
                         }
                     });
@@ -235,17 +321,17 @@ public class MainActivity extends AuthenticatedActivity {
                     btnAccept.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            ReviewTranslationTask task = new ReviewTranslationTask(MainActivity.this, m);
+                            ReviewTranslationTask task = new ReviewTranslationTask(MainActivity.this, msg);
                             Utils.executeAsyncTask(task);
                         }
                     });
 
                     // populate view with message details
-                    lblTranslatedText.setText(m.getTranslation());
+                    lblTranslatedText.setText(msg.getTranslation());
 
                     // show Accept Count - iff greater than 0.
-                    int iACount = m.getAcceptCount();
-                    if (iACount>0) {
+                    int iACount = msg.getAcceptCount();
+                    if (iACount > 0) {
                         String sACount = (new Integer(iACount)).toString();
                         lblAcceptText.setText(sACount);
                         lblAcceptText.setVisibility(View.VISIBLE);
@@ -254,21 +340,16 @@ public class MainActivity extends AuthenticatedActivity {
                     }
 
                     // show accept/reject only for selected cell.
-                    View ol =  v.findViewById(R.id.optionsLayout);
-                    if (ol!=null)
-                        ol.setVisibility( (position == selected) ? View.VISIBLE : View.GONE);
-                    ol =  v.findViewById(R.id.btnEdit);
-                    if (ol!=null)
-                        ol.setVisibility( (position == selected) ? View.VISIBLE : View.GONE);
+                    v.findViewById(R.id.optionsLayout).setVisibility(position == selected ? View.VISIBLE
+                                                                                          : View.GONE);
+                    v.findViewById(R.id.btnEdit).setVisibility(position == selected ? View.VISIBLE
+                                                                                    : View.GONE);
                     break;
-
                 case 1:     // translation view
-                    View delBtn = v.findViewById(R.id.deleteButton);
-                    View canBtn = v.findViewById(R.id.cancelButton);
                     View infoBtn = v.findViewById(R.id.infoButton);
                     ListView sugListView = (ListView)v.findViewById(R.id.listSuggestions);
                     WebView infoWebView;
-                    final ViewFlipper viewFlipper;
+                    final ViewFlipper viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
                     if (convertView==null) {
                         ViewGroup infoLayout = (ViewGroup) v.findViewById(R.id.infoLayout);
                         infoWebView = new WebView(getContext());
@@ -277,87 +358,74 @@ public class MainActivity extends AuthenticatedActivity {
                                 return true;
                             }
                         });
-
                         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                                 LinearLayout.LayoutParams.MATCH_PARENT,
                                 LinearLayout.LayoutParams.MATCH_PARENT);
                         params.setMargins(2, 2, 2, 2);
                         infoWebView.setLayoutParams(params);
-                        infoWebView.setBackgroundColor(0);
+                        infoWebView.setBackgroundColor(0); // transparent
                         infoWebView.setVerticalScrollBarEnabled(true);
                         WebSettings ws= infoWebView.getSettings();
                         ws.setTextSize(WebSettings.TextSize.SMALLER);
                         infoLayout.addView(infoWebView);
-
-                        viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
                         viewFlipper.setInAnimation(getContext(),R.anim.flipin);
                         viewFlipper.setOutAnimation(getContext(),R.anim.flipout);
                     } else {
                         infoWebView = (WebView)((ViewGroup)v.findViewById(R.id.infoLayout)).getChildAt(0);
-                        viewFlipper = (ViewFlipper)v.findViewById(R.id.viewFlipper);
                     }
 
-                    sugListView.setAdapter(m.suggestionsAdapter);
-                    m.suggestionsAdapterView = sugListView; // needed in order to update suggestions at better performance
-
-                    canBtn.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View view) {
-                            m.setmState(1);
-                            translations.notifyDataSetChanged();
-                        }
-                    });
-
-                    delBtn.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View view) {
-                            translations.remove(m);
-                        }
-                    });
+                    sugListView.setAdapter(msg.getSuggestionsAdapter());
+                    View delBtn = v.findViewById(R.id.deleteButton);
+                    View canBtn = v.findViewById(R.id.cancelButton);
+                    if (CURRENT_STATE == State.PROOFREAD) {
+                        canBtn.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                msg.setmState(MessageAdapter.State.PROOFREAD);
+                                translations.notifyDataSetChanged();
+                            }
+                        });
+                        delBtn.setVisibility(View.GONE);
+                        canBtn.setVisibility(View.VISIBLE);
+                    } else {
+                        delBtn.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                translations.remove(msg);
+                            }
+                        });
+                        delBtn.setVisibility(View.VISIBLE);
+                        canBtn.setVisibility(View.GONE);
+                    }
 
                     infoBtn.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View view) {
-                            m.flipInfo();
+                            msg.flipInfo();
                             viewFlipper.showNext();
                         }
                     });
 
-                    // set on click listener for suggestions
-                    sugListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                        @Override
-                        public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                            if (i < adapterView.getCount() - 1) { // suggestion has been clicked
-                                m.savedInput = adapterView.getItemAtPosition(i).toString();
-                                new SubmitTranslationTask((Activity) getContext(), m).execute();
-                                notifyDataSetChanged();
-                            }
-                        }
-                    });
-
-                    if (viewFlipper.getCurrentView().getTag().equals("info") != m.isInfoNeedShown()) {
+                    if (viewFlipper.getCurrentView().getTag().equals("info") != msg.isInfoNeedShown()) {
                         // need to change view without animation. it is sadly inefficient...
-                        Animation in=viewFlipper.getInAnimation();
-                        Animation out=viewFlipper.getOutAnimation();
+                        Animation in = viewFlipper.getInAnimation();
+                        Animation out = viewFlipper.getOutAnimation();
                         viewFlipper.setInAnimation(null);
                         viewFlipper.setOutAnimation(null);
                         viewFlipper.showNext();
                         viewFlipper.setInAnimation(in);
                         viewFlipper.setOutAnimation(out);
                     }
+                    infoBtn.setVisibility(msg.IsDocumentationExists() ? View.VISIBLE : View.GONE);
 
-                    infoBtn.setVisibility(m.IsDocumentationExists() ? View.VISIBLE:View.GONE);
+                    infoWebView.loadData(msg.getDocumentation(), "text/html; charset=UTF-8", null); // load documentation on card
 
-                    infoWebView.loadData(m.getDocumentation(), "text/html; charset=UTF-8", null); // load documentation on card
-
-                    delBtn.setVisibility( (CURRENT_STATE == 1) ? View.GONE    : View.VISIBLE );
-                    canBtn.setVisibility( (CURRENT_STATE == 1) ? View.VISIBLE : View.GONE    );
-
+                    // do heavy measurement to fix frame size
                     View suggestionsLayout = v.findViewById(R.id.listSuggestions);
                     int y = 0;
                     StaticLayout layout;
                     TextPaint paint = lblSourceText.getPaint();
-                    for (String s : m.getSuggestionsList()) {
+                    for (String s : msg.getSuggestionsList()) {
                         layout = new StaticLayout(s, paint, suggestionsLayout.getWidth(),
                                 Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
                         y += layout.getHeight() + 6;
@@ -365,76 +433,92 @@ public class MainActivity extends AuthenticatedActivity {
 
                     View suggestionsFrame = v.findViewById(R.id.suggestionsLayout);
                     ViewGroup.LayoutParams newParams = suggestionsFrame.getLayoutParams();
-                    newParams.height = y + 94;
+                    newParams.height = y + 94; // added height for input box and other spaces
+
+                    /* due to unknown reason, in API 18 (and up? ) need to add more room */
+                    if (Build.VERSION.SDK_INT >= 18) {
+                        newParams.height += 22;
+                    }
                     suggestionsFrame.setLayoutParams(newParams);
 
-                    // we may want to select a better .png for the frame
-//                    float r =  (float)suggestionsFrame.getWidth() / (float)newParams.height;
-//                    if (r >= 3.7)
-//                        suggestionsFrame.setBackgroundDrawable(getResources().getDrawable(R.drawable.new_frame_1));
-//                    else if (newParams.height >= 2.3)
-//                        suggestionsFrame.setBackgroundDrawable(getResources().getDrawable(R.drawable.new_frame_2));
-//                    else
-//                        suggestionsFrame.setBackgroundDrawable(getResources().getDrawable(R.drawable.new_frame_3));
+                    // set on click listener for suggestions
+                    sugListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                        @Override
+                        public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                            if (i < adapterView.getCount() - 1) { // suggestion has been clicked
+                                msg.setSavedInput(adapterView.getItemAtPosition(i).toString());
+                                new SubmitTranslationTask((Activity) getContext(), msg).execute();
+                                notifyDataSetChanged();
+                            }
+                        }
+                    });
                     break;
                 case 2:     // committed translation view
-                    TextView lblCommittedText = (TextView) v.findViewById(R.id.lblCommittedText); // TODO: remove code duplication
-                    if (m.getLang().equals("he") || m.getLang().equals("ar")) {
-                        lblCommittedText.setGravity(Gravity.RIGHT);
-                    } else {
-                        lblCommittedText.setGravity(Gravity.LEFT);
-                    }
-                    lblCommittedText.setText(m.savedInput);
+                    TextView lblCommittedText = (TextView) v.findViewById(R.id.lblCommittedText);
+                    lblCommittedText.setGravity((msg.getLang().equals("he") || msg.getLang().equals("ar"))
+                            ? Gravity.RIGHT
+                            : Gravity.LEFT );
+                    lblCommittedText.setText(msg.getSavedInput());
                     break;
             }
             return v;
         }
     }
 
-    // just applying FetchTranslationsTask in a friendlier way
+    /**
+     * Executes the messages fetch request task
+     */
     public void fetchTranslations() {
+
+        // just applying FetchTranslationsTask in a friendlier way
         FetchTranslationsTask fetchTranslations =
-                new FetchTranslationsTask(this, CUR_LANG, CUR_PROJECT, FETCH_SIZE, CURRENT_STATE, MAX_NO_FETCH_TRIALS);
+                new FetchTranslationsTask(this, CUR_LANG, CUR_PROJECT, FETCH_SIZE,
+                                          MessageAdapter.State.values()[CURRENT_STATE.ordinal()],
+                                          TranslateWikiApp.MAX_NO_FETCH_TRIALS);
         fetchTranslations.execute();
     }
 
+    /**
+     * update preferences and calls to fetch messages from api
+     */
     public void refreshTranslations() { // exactly as "fetchTranslations", but clear first
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        CUR_LANG    = sharedPref.getString(getString(R.string.langugage_key), CUR_LANG);
-        CUR_PROJECT = sharedPref.getString(getString(R.string.projects_key), CUR_PROJECT);
-        FETCH_SIZE  = sharedPref.getInt(getString(R.string.fetch_size_key), FETCH_SIZE);
-        MAX_LENGTH_FOR_MESSAGE = sharedPref.getInt(getString(R.string.max_length_for_message_key), MAX_LENGTH_FOR_MESSAGE);
+        CUR_LANG    = sharedPref.getString(getString(R.string.langugage_key),
+                                          getString(R.string.lang_pref_default));
+        CUR_PROJECT = sharedPref.getString(getString(R.string.projects_key),
+                                          getString(R.string.proj_pref_default));
+        FETCH_SIZE  = sharedPref.getInt(getString(R.string.fetch_size_key),
+                                       Integer.parseInt(getString(R.string.fetch_size_pref_default)));
+        MAX_MESSAGE_LENGTH = sharedPref.getInt(getString(R.string.max_message_length_key),
+                                       Integer.parseInt(getString(R.string.max_length_pref_default)));
         offset = 0;
         translations.clear();
         fetchTranslations();
     }
 
-    // inflates a view for the input view
-    public View getViewForInput(ViewGroup parent, final MessageAdapter m) {
-        View v = layoutInflater.inflate(R.layout.listitem_input, parent, false);
-
-        assert v != null;
-        EditText et = (EditText) v.findViewById(R.id.editText);
-        final Button sendBtn  = (Button) v.findViewById(R.id.sendBtn);
-
-        //sendBtn.setOnClickListener(new sendButtonListener(this, m));
-        final Activity that = this;
+    /**
+     * inflates a view for the input view
+     *
+     * @param parent parent view
+     * @param msg    a message that the input related to
+     * @return input view including all the need feature to take care of.
+     */
+    public View getViewForInput(ViewGroup parent, final MessageAdapter msg) {
+        View view = layoutInflater.inflate(R.layout.listitem_input, parent, false);
+        final Button sendBtn  = (Button) view.findViewById(R.id.sendBtn);
         sendBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                new SubmitTranslationTask(that, m).execute();
+                new SubmitTranslationTask(that, msg).execute();
                 translations.notifyDataSetChanged();
             }
         });
 
-        if (m.savedInput!=null && m.savedInput.length()>0) {
-            et.setText(m.savedInput);
-            sendBtn.setEnabled(true);
-        } else{
-            et.setText("");
-            sendBtn.setEnabled(false);
-        }
-
+        EditText et = (EditText) view.findViewById(R.id.editText);
+        String savedInput = msg.getSavedInput();
+        boolean bool = (savedInput != null) && (savedInput.length() > 0);
+        et.setText( bool ? savedInput : "" );
+        sendBtn.setEnabled(bool);
         et.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {}
@@ -444,91 +528,14 @@ public class MainActivity extends AuthenticatedActivity {
 
             @Override
             public void afterTextChanged(Editable editable) {
-                m.savedInput = editable.toString();
-                if (editable.toString().length()>0) {
-                    sendBtn.setEnabled(true);
-                } else {
-                    sendBtn.setEnabled(false);
-                }
+                msg.setSavedInput(editable.toString());
+                sendBtn.setEnabled( editable.toString().length() > 0 );
             }
         });
-        return v;
+        return view;
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        Bundle extras =  getIntent().getExtras();
-        if (extras !=null && extras.getBoolean("should_logout_first")) {
-            getApp().setCurrentAccount(null);
-            Intent i= new Intent(this, LoginActivity.class);//homescreen of your app.
-            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_HISTORY);
-            i.putExtra("should_logout_first",true);
-            startActivity(i);
-            finish();
-            return;
-        }
-        staticIntent = getIntent();
-        requestAuthToken();
-
-        layoutInflater = getLayoutInflater();
-        getActionBar().setBackgroundDrawable(getResources().getDrawable(R.drawable.menu_color));
-        setContentView(net.translatewiki.app.R.layout.activity_main);
-        selected = 0; // first row is selected at the beginning
-        translations = new MessageListAdapter(this, 0);
-        msgListView = (ListView) findViewById(net.translatewiki.app.R.id.listTranslations);
-        msgListView.setAdapter(translations);
-
-        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        CURRENT_STATE   = sharedPref.getInt(getString(R.string.state_key), CURRENT_STATE);
-        setTitle(CURRENT_STATE==1 ? "Proofread" : "Translate");
-
-        // bind action when clicking on cells
-        msgListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                if (i==adapterView.getCount()-1){ //in case "more" is clicked
-                    fetchTranslations();
-                } else {
-                    //Toast.makeText(getApplicationContext(), new Long(l).toString(), Toast.LENGTH_SHORT).show(); //DEBUG purpose
-                    View ol;
-                    if (view.getTag().equals("cm")) {
-                        ((MessageAdapter)adapterView.getItemAtPosition(i)).setCommitted(false);   // because we move to edit mode
-                        translations.notifyDataSetChanged();
-                    }
-                    else if (view.getTag().equals("pr")) {
-                        //deselect the previous one if visible
-                        int lowBound = adapterView.getFirstVisiblePosition();
-                        int highBound = adapterView.getLastVisiblePosition();
-                        if (selected >= lowBound && selected <= highBound) {
-                            View previous = adapterView.getChildAt(selected-lowBound);
-
-                            if (previous!=null) {
-                                ol =  previous.findViewById(R.id.optionsLayout);
-                                if (ol!=null)
-                                    ol.setVisibility(View.GONE);
-                                ol =  previous.findViewById(R.id.btnEdit);
-                                if (ol!=null)
-                                    ol.setVisibility(View.GONE);
-                            }
-                        }
-
-                        selected = (selected == i) ? -1 : i;  //if already selected - deselect, otherwise move to selected.
-
-                        // show accept/reject only for selected cell.
-                        ol =  view.findViewById(R.id.optionsLayout);
-                        if (ol!=null)
-                            ol.setVisibility((selected == i) ? View.VISIBLE : View.GONE);
-                        ol =  view.findViewById(R.id.btnEdit);
-                        if (ol!=null)
-                            ol.setVisibility((selected == i) ? View.VISIBLE : View.GONE);
-                    }
-                }
-            }
-        });
-    }
-
+    /** {@inheritDoc} */
     @Override
     protected void onAuthCookieAcquired(String authCookie) {
         super.onAuthCookieAcquired(authCookie);
@@ -536,6 +543,7 @@ public class MainActivity extends AuthenticatedActivity {
         refreshTranslations();
     }
 
+    /** {@inheritDoc} */
     @Override
     protected void onAuthFailure() {
         super.onAuthFailure();
@@ -544,16 +552,20 @@ public class MainActivity extends AuthenticatedActivity {
         finish();
     }
 
+    /** {@inheritDoc} */
     @Override
     protected void onStart() {
         super.onStart();
         Bundle extras =  getIntent().getExtras();
+
+        // check whether opened from changing preferences
         if (extras !=null && extras.getBoolean("should_refresh_translations")) {
             selected = -1;
             refreshTranslations();
         }
     }
 
+    /** {@inheritDoc} */
     @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     @Override
     public boolean onCreateOptionsMenu(Menu menu) { //Used to put icons on action bar
@@ -562,7 +574,7 @@ public class MainActivity extends AuthenticatedActivity {
         com.actionbarsherlock.view.MenuInflater inflater = getSupportMenuInflater();
         inflater.inflate(R.menu.main, menu);
         boolean isLight = SampleList.THEME == com.actionbarsherlock.R.style.Theme_Sherlock_Light;
-        menu.findItem(R.id.action_proofread).setTitle((CURRENT_STATE == 1) ? "Translate" : "Proofread");
+        menu.findItem(R.id.action_proofread).setTitle((CURRENT_STATE == State.PROOFREAD) ? "Translate" : "Proofread");
 
         MenuItem settingsBtn = menu.add("Settings");
         settingsBtn.setIcon(isLight ? R.drawable.settings_icon_inverse : R.drawable.settings_icon).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
@@ -577,11 +589,11 @@ public class MainActivity extends AuthenticatedActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             menu.findItem(R.id.sub_menu_item).setVisible(false);
             getActionBar().setHomeButtonEnabled(true);
-
         }
         return super.onCreateOptionsMenu(menu);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean onOptionsItemSelected(com.actionbarsherlock.view.MenuItem item) {
         switch (item.getItemId()) {
@@ -593,30 +605,65 @@ public class MainActivity extends AuthenticatedActivity {
             case R.id.action_proofread:
                 /* falls through */
             default:
-                if (CURRENT_STATE!=1) {
-                    setTitle("Proofread");
-                    item.setTitle("Translate");
-                    switchState(1);
-                } else if (CURRENT_STATE!=2) {
-                    setTitle("Translate");
-                    item.setTitle("Proofread");
-                    switchState(2);
-                } else { return false; }
+                Boolean b = CURRENT_STATE == State.PROOFREAD;
+                setTitle     (b ? "Translate" : "Proofread");
+                item.setTitle(b ? "Proofread" : "Translate");
+                switchState(b ? State.TRANSLATE : State.PROOFREAD);
                 break;
         }
         return true;
     }
 
-    public void switchState(int newState) {
+    /**
+     * set activity state into proofread or Translate
+     * @param newState the new state to set
+     */
+    public void switchState(State newState) {
         CURRENT_STATE = newState;
         refreshTranslations();
         SharedPreferences.Editor sharedPrefEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-        sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE);
-        sharedPrefEditor.commit();
+        sharedPrefEditor.putInt(getString(R.string.state_key), CURRENT_STATE.ordinal());
+        sharedPrefEditor.commit(); // save preference
     }
 
-    public void openSettings() {
-        Intent intent =  new Intent(this,SettingsActivity.class);
+    /**
+     * call preferences activity
+     */
+    private void openSettings() {
+        Intent intent =  new Intent(this,TWPreferenceActivity.class);
         startActivity(intent);
+    }
+
+    /**
+     * @return database helper for rejected messages
+     */
+    public RejectedMsgDbHelper getmDbHelper() {
+        if (mDbHelper == null)
+            mDbHelper = new RejectedMsgDbHelper(this);
+        return mDbHelper;
+    }
+
+    /**  {@inheritDoc} */
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        /* happens on device rotation - needs to inflate UI an update adapters */
+        super.onConfigurationChanged(newConfig);
+        initializeUI();
+        notifyTranslationsOnNewThread();
+    }
+
+    /**
+     *  inflates UI for this activity
+     */
+    private void initializeUI() {
+        layoutInflater = getLayoutInflater();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+            getActionBar().setBackgroundDrawable(getResources().getDrawable(R.drawable.menu_color));
+        }
+        setContentView(net.translatewiki.app.R.layout.activity_main);
+        msgListView = (ListView) findViewById(net.translatewiki.app.R.id.listTranslations);
+        msgListView.setAdapter(translations);
+
+        setTitle(CURRENT_STATE == State.PROOFREAD ? "Proofread" : "Translate");
     }
 }

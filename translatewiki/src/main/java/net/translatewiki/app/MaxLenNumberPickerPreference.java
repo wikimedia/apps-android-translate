@@ -25,23 +25,34 @@ import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 
 /**
- * Created by orsa on 22/8/13.
+ * concrete NumberPickerPreference to handle picking of maximum message length.
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
-public class MaxLenNumberPickerPreference extends NumberPickerPreference implements SharedPreferences.OnSharedPreferenceChangeListener{
+public class MaxLenNumberPickerPreference extends NumberPickerPreference
+        implements SharedPreferences.OnSharedPreferenceChangeListener{
+
+    private static final int LOWER_BOUND = 10;
+    private static final int UPPER_BOUND  = 200;
+
     public MaxLenNumberPickerPreference(Context context, AttributeSet attrs) {
-        super(context, attrs,10,200); //define the range of the picker
-        PreferenceManager.getDefaultSharedPreferences(context).registerOnSharedPreferenceChangeListener(this);
-        Integer val = PreferenceManager.getDefaultSharedPreferences(getContext()).getInt(getContext().getString(R.string.max_length_for_message_key),-1);
-        if (val!=-1)
-            setSummary(String.valueOf(val));
+        super(context, attrs, LOWER_BOUND, UPPER_BOUND); //define the range of the picker
+        SharedPreferences sharedPreference = PreferenceManager.getDefaultSharedPreferences(context);
+        sharedPreference.registerOnSharedPreferenceChangeListener(this);
+        Integer val = sharedPreference.getInt(context.getString(R.string.max_message_length_key), -1);
+        setSummary(String.valueOf(val != -1 ? val : MainActivity.MAX_MESSAGE_LENGTH));
     }
 
+    /** {@inheritDoc} */
     @Override
     public Integer getStep() { return 10; } //define the step of the picker
 
+    /** {@inheritDoc} */
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
-        if (s.equals(getContext().getString(R.string.max_length_for_message_key)))
+        if (s.equals(getContext().getString(R.string.max_message_length_key)))
             setSummary(String.valueOf(getPersistedInt(initialValue)));
     }
 }

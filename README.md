@@ -1,9 +1,8 @@
 
 translatewiki.net Android app - 
 -
-Translatewiki.net is a localisation platform for translation communities, language communities,
-and free and open source projects.
-This app makes this platform accessible and usable via Android mobile devices.
+Making translations in a MediaWiki site with the Translate extension, 
+such as translatewiki.net or meta.wikimedia.org.
  
  * created by Or Sagi, 2013.
 
@@ -12,27 +11,11 @@ This app makes this platform accessible and usable via Android mobile devices.
 Introduction
 ============
 This project is currently in development.
-see more info at:	
-  
-		http://translatewiki.net/wiki/AndroidApp
- 		http://www.mediawiki.org/wiki/User:Orsagi/GSoC_2013_proposal
+see more info at:	http://www.mediawiki.org/wiki/User:Orsagi/GSoC_2013_proposal
+or project updates: http://www.mediawiki.org/wiki/User:Orsagi/Android_app_for_MediaWiki_translation/Project_Updates
 
-development updates:
-
-		http://www.mediawiki.org/wiki/User:Orsagi/Android_app_for_MediaWiki_translation/Project_Updates
-
-compatible with: Android 3.0 (HONEYCOMB, API level 11) or later.
-
-Beta-Test
-=========
-You can download a beta version .apk file from:
-
-		https://drive.google.com/folderview?id=0B9Evx8QtmqJONDh5dVozSEdkWEE&usp=sharing
-
-Report your issues to:		https://docs.google.com/forms/d/1LoVJBmpTXLcYnRCoWlrPOfB2CTrtdjVCV8Bh0tCFhbI/viewform
-
-Work on this project
-====================
+Get this to work
+================
 The project is being developed using 'Android Studio', thus it might be optimal to build 
 and run under the same.
 
@@ -67,7 +50,7 @@ Note:
 
 =====
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this code except in compliance with the License.
+you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
 	http://www.apache.org/licenses/LICENSE-2.0

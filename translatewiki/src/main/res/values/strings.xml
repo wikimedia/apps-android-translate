@@ -3,7 +3,6 @@
 
     <string name="app_name">translatewiki</string>
     <string name="action_settings">Settings</string>
-    <string name="hello_world">Hello world!</string>
     <string name="username">Username:</string>
     <string name="password">Password:</string>
     <string name="login">login!</string>
@@ -27,9 +26,8 @@
     <string name="language_preference">Language</string>
     <string name="settings_menu">Settings</string>
     <string name="settings_title">Settings</string>
-
     <string name="logging_in_title">Logging In</string>
-    <string name="logging_in_message">Witty text here</string>
+    <string name="logging_in_message">One moment...</string>
     <string name="login_success">Login success!</string>
     <string name="login_failed">Login failed!</string>
     <string name="authentication_failed">Authentication failed!</string>
@@ -43,9 +41,17 @@
     <string name="langugage_key">language_key</string>
     <string name="state_key">state_key</string>
     <string name="fetch_size_key">fetch_size_key</string>
-    <string name="max_length_for_message_key">max_length_for_message_key</string>
+    <string name="max_message_length_key">max_length_for_message_key</string>
     <string name="project_entry_list_key">project_entry_list_key</string>
     <string name="project_value_list_key">project_value_list_key</string>
     <string name="logout_success">Logout success!</string>
+    <string name="lang_pref_default">en</string>
+    <string name="proj_pref_default">!recent</string>
+    <string name="fetch_size_pref_default">6</string>
+    <string name="max_length_pref_default">100</string>
+    <string name="your_translation">Your translation</string>
+    <string name="load_messages_failed">Load Fail</string>
+    <string name="no_more_msg">No more messages to load</string>
+    <string name="loading_msgs">Loading...</string>
 
 </resources>

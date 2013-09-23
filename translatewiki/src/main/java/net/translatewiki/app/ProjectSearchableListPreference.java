@@ -40,7 +40,12 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Created by orsa on 22/8/13.
+ * concrete list preference which allows search and filtering for projects,
+ * including fetch them from api server and save the data in files.
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
 public class ProjectSearchableListPreference extends SearchableListPreference {
 
@@ -67,7 +72,6 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         }
         setSummaryofValue();
         dataList.removeAll(recentList);
-
     }
 
     public void setSummaryofValue(){
@@ -82,33 +86,35 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         setSummary(summaryEntry!=null? summaryEntry : "" );
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
         if (s.equals(getContext().getString(R.string.projects_key)))
             setSummaryofValue();
     }
 
+    /** {@inheritDoc} */
     @Override
-    public boolean showRefreshBtn() {
-        return true;
-    }
+    public boolean showRefreshBtn() { return true; }
 
+    /** {@inheritDoc} */
     @Override
     public PairList getListForSection(int section) {
-        switch (section){
+        switch (section) {
             case 0:
-                return recentList;
+                return recentList;     // section of recently used projects
             case 1:
                 return new PairList(); // we don't use this section for projects
             case 2:
-                return dataList;
+               return dataList;        // section of all the other projects
         }
         return null;
     }
 
+    /** {@inheritDoc} */
     @Override
     public int getSizeOfSection(int section) {
-        switch (section){
+        switch (section) {
             case 0:
                 return recentList.size();
             case 1:
@@ -119,67 +125,93 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         return 0;
     }
 
+    /** {@inheritDoc} */
     @Override
     protected void onDialogClosed(boolean positiveResult) {
         super.onDialogClosed(positiveResult);
         if (positiveResult) {
-            String selEnt = itemListAdapter.selectedEntry;
+            String selEnt = itemListAdapter.getSelectedEntry();
             String s = getValueOfEntry(selEnt);
-            if (selEnt!=null && s!=null){
-                recentList.remove(Pair.create(selEnt, s));
-                recentList.add(0, Pair.create(selEnt, s));
-                while (recentList.size()>MAX_RECENTS) recentList.remove(MAX_RECENTS);
-                dataList    = loadList(ENTRIES_FILENAME, VALUES_FILENAME);
-                dataList.removeAll(recentList);
+            if (selEnt != null && s != null) {
+                recentList.remove(Pair.create(selEnt, s));  // avoid duplication
+                recentList.add(0, Pair.create(selEnt, s));  // insert at the beginning
+                while (recentList.size() > MAX_RECENTS) {   // remove outstanding items from the end
+                    recentList.remove(MAX_RECENTS);
+                }
+                dataList = loadList(ENTRIES_FILENAME, VALUES_FILENAME); // load from file
+                dataList.removeAll(recentList); // filter recents from the general list
+
+                // save recents in file
                 saveList(REC_ENTRIES_FILENAME,REC_VALUES_FILENAME,recentList.getEntries(),recentList.getValues());
+
+                // update adapter
                 itemListAdapter.clear();
                 itemListAdapter.addAll(extractEntries());
             }
         }
-        sv.getOnFocusChangeListener().onFocusChange(sv,false);
+        searchView.getOnFocusChangeListener().onFocusChange(searchView,false);
     }
 
+    /**
+     * refreshes the project list if empty.
+     *
+     * @return the current entry list of the general section, before refreshing.
+     */
     public List<String> getEntryList() {
         ArrayList<String> entryList = new ArrayList<String>();
-        if (dataList==null || dataList.size()==0){
+        if (dataList == null || dataList.size() == 0) {
             refreshList();
-        }
-        else{
+        } else {
             entryList.addAll(dataList.getEntries());
         }
-
         return entryList;
     }
 
+    /**
+     * refreshes the project list if empty.
+     *
+     * @return the current value list of the general section, before refreshing.
+     */
     public List<String> getValueList() {
         ArrayList<String> valueList = new ArrayList<String>();
-        if (dataList==null || dataList.size()==0){
+        if (dataList == null || dataList.size() == 0) {
             refreshList();
-        }
-        else{
+        } else {
             valueList.addAll(dataList.getValues());
         }
         return valueList;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDefaultValue() { return "!recent"; }
 
+    /** {@inheritDoc} */
     @Override
     public Integer getNumberOfSections() { return 3; }
 
+    /** {@inheritDoc} */
     @Override
     public void onClickRefresh() {
-        refreshList();
-        //this.itemListAdapter.notifyDataSetChanged();
+        refreshList(); // fetch projects from api
     }
 
+    /**
+     * calls the fetch projects task to request project list from the api sever.
+     */
     public void refreshList() {
         new FetchProjectsTask().execute();
     }
 
+    /**
+     * saves entry list and value list into two files.
+     *
+     * @param key_e key for a file to save entry list
+     * @param key_v key for a file to save value list
+     * @param entryList entry list to save
+     * @param valueList value list to save
+     */
     public static void saveList(String key_e , String key_v, List<String> entryList,List<String> valueList) {
-
         FileOutputStream fos;
         try {
             fos = staticContext.openFileOutput(key_e, Context.MODE_PRIVATE);
@@ -197,63 +229,70 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
         }
     }
 
+    /**
+     * load entry list and value list into one unified {@link PairList}
+     *
+     * @param key_e key for a file to load entry list
+     * @param key_v key for a file to load value list
+     * @return list of entry-value generated from the specified files
+     */
     public PairList loadList(String key_e , String key_v) {
         PairList list = new PairList();
         FileInputStream fis;
         byte[] b;
         try {
-
             fis = getContext().openFileInput(key_e);
             b = new byte[fis.available()];
             fis.read(b);
             fis.close();
             List<String> loadedEntryList, loadedValueList;
             String tempStr, manipulatedStr;
-            if (b.length>2){
+            if (b.length > 2) {
                 tempStr = new String(b).trim();
-                manipulatedStr = tempStr.substring(1,tempStr.length()-1).trim();
-                loadedEntryList  = new ArrayList<String>(Arrays.asList(manipulatedStr.split(", ")));
+                manipulatedStr = tempStr.substring(1, tempStr.length() - 1).trim();
+                loadedEntryList = new ArrayList<String>(Arrays.asList(manipulatedStr.split(", ")));
+            } else {
+                loadedEntryList = new ArrayList<String>();
             }
-            else
-                loadedEntryList  = new ArrayList<String>();
-
             fis = getContext().openFileInput(key_v);
             b = new byte[fis.available()];
             fis.read(b);
             fis.close();
-            if (b.length>2){
+            if (b.length > 2) {
                 tempStr = new String(b).trim();
-                manipulatedStr = tempStr.substring(1,tempStr.length()-1).trim();
-                loadedValueList  = new ArrayList<String>(Arrays.asList(manipulatedStr.split(", ")));
+                manipulatedStr = tempStr.substring(1, tempStr.length() - 1).trim();
+                loadedValueList = new ArrayList<String>(Arrays.asList(manipulatedStr.split(", ")));
+            } else {
+                loadedValueList = new ArrayList<String>();
             }
-            else
-                loadedValueList  = new ArrayList<String>();
-
-            int i;
-            for (i=0; i<Math.min(loadedEntryList.size(), loadedValueList.size());i++){
+            for (int i=0; i<Math.min(loadedEntryList.size(), loadedValueList.size()); i++) {
                 list.add(Pair.create(loadedEntryList.get(i), loadedValueList.get(i)));
             }
-
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return list;
     }
 
-    public static void deleteSavedData(){
-
-        dataList = new PairList();
-        that.refreshList();
+    /**
+     * make all the files empty and refresh projects from api server
+     */
+    public static void deleteSavedData() {
+        dataList   = new PairList();
         recentList = new PairList();
-        saveList(REC_ENTRIES_FILENAME,REC_VALUES_FILENAME,recentList.getEntries(),recentList.getValues());
-        saveList(ENTRIES_FILENAME,VALUES_FILENAME,dataList.getEntries(),dataList.getValues());
+        saveList(REC_ENTRIES_FILENAME, REC_VALUES_FILENAME, recentList.getEntries(), recentList.getValues());
+        saveList(ENTRIES_FILENAME, VALUES_FILENAME, dataList.getEntries(), dataList.getValues());
+        that.refreshList();
     }
 
     /**
-     * Handles the task of getting the project list.
+     * Task that handles requesting and getting the project list from api server
+     *
+     * @author      Or Sagi
+     * @version     %I%, %G%
+     * @since       1.0
      */
     private class FetchProjectsTask extends AsyncTask<Void, Void, List<ApiResult>> {
 
@@ -281,52 +320,39 @@ public class ProjectSearchableListPreference extends SearchableListPreference {
                 e.printStackTrace();
                 return null;
             }
-
-            // extracts suggestions
-            return result.getNodes("/api/query/messagegroups/group");
+            return result.getNodes("/api/query/messagegroups/group"); // extract the proper nodes
         }
 
         @Override
         protected void onPostExecute(List<ApiResult> packedProjects) {
             super.onPostExecute(packedProjects);
-
             String label, id;
-            for(ApiResult packedProj: packedProjects)
-            {
+            for(ApiResult packedProj: packedProjects) {
                 label = packedProj.getString("@label");
                 id = packedProj.getString("@id");
                 if (label!=null && id!=null && !dataList.contains(Pair.create(label,id))) {
                     dataList.add(Pair.create(label,id));
-                  //  entryList.add(label);
-                  //  valueList.add(id);
-                }
-                else {
-
+                } else {
                     // TODO: handle error in getting projects (got null or duplication)
                 }
             }
 
             // make a special project
-
             dataList.remove(Pair.create("Recent translations", "!recent"));
             dataList.remove(Pair.create("Recent additions"   , "!additions"));
             if( !dataList.contains(Pair.create("Recent Contributions","!recent"))) {
                dataList.add(Pair.create("Recent Contributions", "!recent"));
             }
 
+            // save the newly fetched projects into file
             saveList(ENTRIES_FILENAME,VALUES_FILENAME,getEntryList(),getValueList());
-            dataList.removeAll(recentList);
+            dataList.removeAll(recentList); // filter recent projects from general section
 
-
-            if (itemListAdapter!=null)
-            {
-                int i = itemListAdapter.getCount();
-                if (i>0)
-                    itemListAdapter.clear();
+            // update adapter
+            if (itemListAdapter != null) {
+               itemListAdapter.clear();
                 itemListAdapter.addAll(extractEntries());
             }
         }
     }
-
-
 }

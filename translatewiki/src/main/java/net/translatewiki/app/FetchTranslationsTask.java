@@ -32,6 +32,10 @@ import java.util.ArrayList;
 /**
  * Handles the task of getting messages (translated fo proofread or else for translation),
  * filtering and storing to MessageListAdapter
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
 public class FetchTranslationsTask extends AsyncTask<Void, Void, ArrayList<MessageAdapter>> {
 
@@ -39,10 +43,12 @@ public class FetchTranslationsTask extends AsyncTask<Void, Void, ArrayList<Messa
     private String lang;
     private String proj;
     private Integer limit;
-    private int msgState;            // 1 - proofread (translated)  2 - translate (untranslated)
+    private MessageAdapter.State msgState;  // 1 - proofread (translated)  2 - translate (untranslated)
     private int numOfTrials;
+    private int error = 0;     // in case of error. a handler can identify error type via this var
 
-    public FetchTranslationsTask(Activity context, String lang, String proj, Integer limit, int state, int numOfTrials) {
+    public FetchTranslationsTask(Activity context, String lang, String proj, Integer limit,
+                                 MessageAdapter.State state, int numOfTrials) {
         this.context = context;
         this.lang = lang;
         this.proj = proj;
@@ -55,7 +61,7 @@ public class FetchTranslationsTask extends AsyncTask<Void, Void, ArrayList<Messa
     protected void onPreExecute() {
         super.onPreExecute();
         // indicate the fetch starts
-        Toast toast =  Toast.makeText(context,"Loading!", Toast.LENGTH_LONG);
+        Toast toast =  Toast.makeText(context,context.getString(R.string.loading_msgs), Toast.LENGTH_LONG);
         toast.show();
     }
 
@@ -68,83 +74,100 @@ public class FetchTranslationsTask extends AsyncTask<Void, Void, ArrayList<Messa
             String userId = api.getUserID();
             result = api.action("query")
                     .param("list", "messagecollection")
-                    .param("mcgroup", proj.equals("!recent") && msgState==2
+                    .param("mcgroup", proj.equals("!recent") && msgState == MessageAdapter.State.TRANSLATE
                                     ? "!additions" : proj) // project
-                    .param("mclanguage", lang)          // language
-                    .param("mclimit", limit.toString()) // number of messages to fetch
-                    .param("mcoffset", MainActivity.offset.toString())   // index Offset
-                    .param("mcprop", "definition|translation|revision|properties")  // info to get
-                    .param("mcfilter", msgState == 1           // different filter for translated/untranslated
+                    .param("mclanguage", lang)             // language
+                    .param("mclimit", limit.toString())    // number of messages to fetch
+                    .param("mcoffset", MainActivity.offset.toString())             // index Offset
+                    .param("mcprop", "definition|translation|revision|properties") // info to get
+                    .param("mcfilter", msgState == MessageAdapter.State.PROOFREAD
                             ? "!last-translator:" + userId + "|!reviewer:" + userId + "|!ignored|translated"
                             : "!ignored|!translated|!fuzzy")
                     .post();
         } catch (IOException e) {
             e.printStackTrace();
-            Toast toast = Toast.makeText(context,"Load Fail", Toast.LENGTH_LONG);
-            toast.show();
-            this.cancel(true);
+            error = 2;
             return null;
         }
 
         ArrayList<ApiResult> messages = result.getNodes("/api/query/messagecollection/message");
         //Log.d("TWN", "Actual result is" + Utils.getStringFromDOM(result.getDocument()));  //DEBUG
 
-        MainActivity.offset += messages.size(); //advance offset
+        if (messages.size() == 0) {
+            error = 1;
+            return null;
+        } else {
+            MainActivity.offset += messages.size(); //advance offset
+            String definition;
+            for(ApiResult message: messages) {
+                definition =   message.getString("@definition");
+                if (definition.length()>MainActivity.MAX_MESSAGE_LENGTH) // skip over too long translations
+                    continue;
+                MessageAdapter m = new MessageAdapter(context,
+                        message.getString("@key"),
+                        message.getString("@title"),
+                        proj,
+                        lang,
+                        definition,
+                        message.getString("@translation"),
+                        message.getString("@revision"),
+                        message.getNodes("properties/reviewers").size(),
+                        msgState);
 
-        String definition;
-        for(ApiResult message: messages) {
-
-            definition =   message.getString("@definition");
-            if (definition.length()>MainActivity.MAX_LENGTH_FOR_MESSAGE) // skip over too long translations
-                continue;
-            MessageAdapter m = new MessageAdapter(context,
-                    message.getString("@key"),
-                    message.getString("@title"),
-                    proj,
-                    lang,
-                    definition,
-                    message.getString("@translation"),
-                    message.getString("@revision"),
-                    message.getNodes("properties/reviewers").size(),
-                    msgState);
-
-            messagesList.add(m);
+                messagesList.add(m);
+            }
+            return messagesList;
         }
-        return messagesList;
     }
 
     @Override
     protected void onPostExecute(ArrayList<MessageAdapter> result) {
         super.onPostExecute(result);
-        if (result!= null  && result.size()>0)
-        {
+        Toast toast;
+        if (result == null) { // in case of error follow the error type to handle
+           switch (error) {
+            case 1:
+                toast = Toast.makeText(context,context.getString(R.string.no_more_msg), Toast.LENGTH_SHORT);
+                toast.show();
+                break;
+            case 2:
+                toast = Toast.makeText(context,context.getString(R.string.load_messages_failed), Toast.LENGTH_LONG);
+                toast.show();
+                break;
+            default:
+                break;
+           }
+        }
+
+        if (result != null && result.size() > 0) {
             //prepare SQL db for query
-            if (MainActivity.CURRENT_STATE==1 && MainActivity.mDbHelper==null){
+            if (MainActivity.CURRENT_STATE == MainActivity.State.PROOFREAD
+                    && MainActivity.mDbHelper == null) {
                 MainActivity.mDbHelper = new RejectedMsgDbHelper(context);
             }
 
             int count = 0;
-            for(MessageAdapter m : result) { // add new messages to our data store.
+            for (MessageAdapter m : result) { // add new messages to our data store.
+                if (msgState.ordinal() != MainActivity.CURRENT_STATE.ordinal())
+                    continue; // drop if state has been changed
 
-                if (msgState != MainActivity.CURRENT_STATE) // drop if state has been changed
-                    continue;
-
-                if (MainActivity.CURRENT_STATE==1 && MainActivity.mDbHelper.containsRevision(m.getRevision()))     // iff found as rejected
-                     continue;
+                if (MainActivity.CURRENT_STATE == MainActivity.State.PROOFREAD
+                        && MainActivity.mDbHelper.containsRevision(m.getRevision()))
+                    continue; // drop iff found as rejected
 
                 MainActivity.translations.add(m);
                 count++;
 
                 //get suggestionsAdapter for this message
-                if (msgState == 2) {  // iff non-translated message
+                if (msgState == MessageAdapter.State.TRANSLATE) {  // iff non-translated message
                     new FetchHelpersTask(context,m).execute();
                 }
             }
             // completion fetch - next trial
-            if (numOfTrials>1 && count<limit && msgState==MainActivity.CURRENT_STATE) {
-                new FetchTranslationsTask(context,lang, proj, limit-count,msgState, numOfTrials - 1).execute();
+            if ((numOfTrials > 0) && (count < limit) && (msgState.ordinal() == MainActivity.CURRENT_STATE.ordinal())) {
+                new FetchTranslationsTask(context, lang, proj, limit - count, msgState, numOfTrials - 1)
+                        .execute();
             }
         }
     }
 }
-

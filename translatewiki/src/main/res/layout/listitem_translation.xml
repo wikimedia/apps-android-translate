@@ -5,30 +5,39 @@
     android:layout_margin="15dp"
     android:padding="0dp"
     android:focusable="false"
+    android:focusableInTouchMode="false"
+    android:clickable="false"
     android:tag="tr"
     android:background="@android:color/transparent">
 
-
         <ViewFlipper
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:id="@+id/viewFlipper">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/viewFlipper"
+            android:focusable="false"
+            android:focusableInTouchMode="false">
 
             <LinearLayout
-                    android:orientation="vertical"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="0dp"
-                    android:layout_margin="0dp"
-                    android:id="@+id/linearLayout"
-                    android:background="@android:color/transparent"
-                    android:tag = "input">
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="0dp"
+                android:layout_margin="0dp"
+                android:id="@+id/linearLayout"
+                android:background="@android:color/transparent"
+                android:tag = "input"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:clickable="false">
 
                 <LinearLayout
-                        android:layout_width="fill_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        >
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:clickable="false"
+                    >
 
                     <TextView
                         android:id="@+id/lblSourceText"
@@ -36,7 +45,7 @@
                         android:layout_height="fill_parent"
                         android:layout_alignParentRight="true"
                         android:layout_centerHorizontal="true"
-                        android:padding="4dip"
+                        android:padding="3dip"
                         android:textAppearance="?android:attr/textAppearanceLarge"
                         android:textColor="#565656"
                         android:textSize="15dp"
@@ -46,110 +55,117 @@
                         android:background="@android:color/transparent" />
 
                     <LinearLayout
-                            android:orientation="vertical"
-                            android:layout_width="0dp"
-                            android:layout_height="fill_parent"
-                            android:measureWithLargestChild="true"
-                            android:layout_gravity="right|top"
-                            android:minWidth="35dp"
-                            android:gravity="right"
-                            android:layout_weight="1">
+                        android:orientation="vertical"
+                        android:layout_width="0dp"
+                        android:layout_height="fill_parent"
+                        android:measureWithLargestChild="true"
+                        android:layout_gravity="right|top"
+                        android:minWidth="35dp"
+                        android:gravity="right"
+                        android:clickable="false"
+                        android:layout_weight="1">
 
                         <FrameLayout
-                                android:layout_width="30dp"
-                                android:layout_height="30dp"
-                                android:layout_gravity="right"
-                                android:minWidth="30dp"
-                                android:minHeight="30dp"
-                                android:measureAllChildren="true">
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_gravity="right"
+                            android:minWidth="30dp"
+                            android:minHeight="30dp"
+                            android:measureAllChildren="true">
                         </FrameLayout>
 
                         <ImageButton
-                                android:layout_width="26dp"
-                                android:layout_height="26dp"
-                                android:id="@+id/deleteButton"
-                                android:layout_alignParentRight="true"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:id="@+id/deleteButton"
+                            android:layout_alignParentRight="true"
                             android:background="@drawable/trash_new"
-                                android:padding="0dp"
-                                android:layout_gravity="right"
-                                android:minWidth="30dp"
+                            android:padding="0dp"
+                            android:layout_gravity="right"
+                            android:minWidth="30dp"
                             android:layout_marginTop="10dp"
                             android:adjustViewBounds="true"
                             android:focusable="false"
                             android:focusableInTouchMode="false"
-                            android:clickable="false" />
+                            android:clickable="false"
+                            android:layout_marginBottom="0dp"/>
 
                         <ImageButton
-                                android:layout_width="26dp"
-                                android:layout_height="26dp"
-                                android:layout_alignParentRight="true"
-                                android:src="@android:drawable/ic_menu_close_clear_cancel"
-                                android:background="@android:drawable/ic_menu_edit"
-                                android:padding="0dp"
-                                android:layout_gravity="right"
-                                android:minWidth="30dp"
-                                android:baselineAlignBottom="false"
-                                android:id="@+id/cancelButton"
-                                android:focusableInTouchMode="false"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:layout_alignParentRight="true"
+                            android:src="@android:drawable/ic_menu_close_clear_cancel"
+                            android:background="@android:drawable/ic_menu_edit"
+                            android:padding="0dp"
+                            android:layout_gravity="right"
+                            android:minWidth="30dp"
+                            android:baselineAlignBottom="false"
+                            android:id="@+id/cancelButton"
+                            android:focusableInTouchMode="false"
                             android:focusable="false"
-                            android:clickable="false" />
+                            android:clickable="false"
+                            android:layout_marginBottom="0dp"
+                            android:layout_marginTop="10dp"/>
                     </LinearLayout>
-
                 </LinearLayout>
 
                 <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="140dp"
+                    android:background="@drawable/new_frame_2"
+                    android:orientation="vertical"
+                    android:id="@id/suggestionsLayout"
+                    android:minHeight="20dp"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:layout_marginTop="-5dp">
+
+                    <ListView
+                        xmlns:android="http://schemas.android.com/apk/res/android"
+                        android:id="@+id/listSuggestions"
                         android:layout_width="match_parent"
-                        android:layout_height="140dp"
-                        android:background="@drawable/new_frame_2"
-                        android:orientation="vertical"
-                        android:id="@id/suggestionsLayout"
-                    android:minHeight="20dp">
-
-                    <ListView xmlns:android="http://schemas.android.com/apk/res/android"
-                              android:id="@+id/listSuggestions"
-                              android:layout_width="match_parent"
-                              android:layout_height="match_parent"
-                              android:animateLayoutChanges="true"
-                              android:divider="#aaaaaa"
-                              android:dividerHeight="1dp"
-                              android:background="#ffffff"
-                              android:focusable="false"
-                              android:layout_marginLeft="6dp"
-                              android:layout_marginTop="13dp"
-                              android:layout_marginRight="6dp"
-                              android:layout_marginBottom="6dp"
-                              android:fastScrollAlwaysVisible="false"
+                        android:layout_height="match_parent"
+                        android:animateLayoutChanges="true"
+                        android:divider="#aaaaaa"
+                        android:dividerHeight="1dp"
+                        android:background="#ffffff"
+                        android:focusable="false"
+                        android:clickable="false"
+                        android:focusableInTouchMode="false"
+                        android:descendantFocusability="beforeDescendants"
+                        android:layout_marginLeft="6dp"
+                        android:layout_marginTop="13dp"
+                        android:layout_marginRight="6dp"
+                        android:layout_marginBottom="6dp"
+                        android:fastScrollAlwaysVisible="false"
                         android:minHeight="20dp"
-                        android:focusableInTouchMode="false" />
+                    />
                 </LinearLayout>
-
             </LinearLayout>
 
             <LinearLayout
-                    android:orientation="vertical"
-                    android:layout_width="fill_parent"
-                    android:layout_height="fill_parent"
-                    android:background="@drawable/message_display"
-                    android:tag = "info"
-                    android:id="@id/infoLayout">
-
-            </LinearLayout>
-
+                android:orientation="vertical"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:background="@drawable/message_display"
+                android:tag = "info"
+                android:id="@id/infoLayout"
+            />
         </ViewFlipper>
 
         <ImageButton
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:id="@+id/infoButton"
-                android:layout_alignParentRight="true"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:id="@+id/infoButton"
+            android:layout_alignParentRight="true"
             android:background="@drawable/info_new"
-                android:padding="0dp"
-                android:layout_margin="0dp"
+            android:padding="0dp"
+            android:layout_margin="0dp"
             android:adjustViewBounds="true"
             android:focusable="false"
             android:cropToPadding="false"
             android:alpha="0.85"
             android:focusableInTouchMode="false"
-            android:clickable="true" />
-
+            android:clickable="true"
+        />
 </RelativeLayout>

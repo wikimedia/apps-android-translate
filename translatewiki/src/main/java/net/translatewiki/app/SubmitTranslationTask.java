@@ -29,6 +29,10 @@ import java.io.IOException;
 
 /**
  * Handles the task of contributing new translation (edit) for a message.
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
 public class SubmitTranslationTask extends AsyncTask<Void, Void, String> {
 
@@ -61,16 +65,16 @@ public class SubmitTranslationTask extends AsyncTask<Void, Void, String> {
                     throw new RuntimeException();
                 }
             }
-            if(MainActivity.translateToken == null || MainActivity.translateToken.length()==0) {
+            if(!validToken()) {
                 ApiResult tokenResult;
                 tokenResult = app.getApi().action("tokens").param("type", "edit").post();
                 //Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument())); // DEBUG
                 MainActivity.translateToken = tokenResult.getString("/api/tokens/@edittoken");
                 //Log.d("TWN", "Token is " + MainActivity.translateToken); // DEBUG
 
-                if (MainActivity.translateToken==null || MainActivity.translateToken.length()==0) {
+                if (!validToken()) {
                     String warning = tokenResult.getString("/api/warnings/tokens");
-                    warning = ((warning==null || warning.length()==0 ) ? "no token!" : warning);
+                    warning = ((warning == null || warning.length() == 0 ) ? "no token!" : warning);
                     return warning;
                 }
             }
@@ -78,12 +82,12 @@ public class SubmitTranslationTask extends AsyncTask<Void, Void, String> {
             // send API request for review message
             ApiResult editResult = app.getApi().action("edit")
                     .param("title", message.getmTitle())
-                    .param("text", message.savedInput)
+                    .param("text", message.getSavedInput())
                     .param("token", MainActivity.translateToken).post();
             //Log.d("TWN", Utils.getStringFromDOM(editResult.getDocument())); // DEBUG
 
             String error = editResult.getString("/api/error/@info");
-            if (error!=null && error.length()>0) {
+            if (error != null && error.length() > 0) {
                 return error;
             }
         } catch (IOException e) {
@@ -100,11 +104,14 @@ public class SubmitTranslationTask extends AsyncTask<Void, Void, String> {
             Toast warningToast = Toast.makeText(context, warning , Toast.LENGTH_LONG);
             warningToast.show();
         } else {
-            // TODO: check indeed successful, we are lying meanwhile...
             Toast successToast = Toast.makeText(context, "committed!", Toast.LENGTH_SHORT);
             successToast.show();
             ((MainActivity)context).notifyTranslationsOnNewThread();
         }
     }
-}
 
+    /* verify token exist and not empty */
+    private boolean validToken() {
+        return MainActivity.translateToken != null && MainActivity.translateToken.length() > 0;
+    }
+}

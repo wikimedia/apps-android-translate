@@ -33,7 +33,20 @@ import org.mediawiki.auth.MWApiApplication;
 
 import java.io.IOException;
 
+/**
+ * Application class to hold any global property or cross module object.
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
+ */
 public class TranslateWikiApp extends Application implements MWApiApplication {
+
+    // hard-coded properties.
+    public static final int MAX_SUGGESTION_LENGTH = 100;
+    public static final int     MAX_NO_SUGGESTIONS         = 3;
+    public static final int     MAX_NO_FETCH_TRIALS        = 5;
+    public static final Double MIN_SUGGESTION_QUALITY = 0.9;
 
     private static MWApi api = createMWApi(); //singleton
 
@@ -50,10 +63,10 @@ public class TranslateWikiApp extends Application implements MWApiApplication {
                 HttpVersion.HTTP_1_0);
         return new MWApi(API_URL, client);
     }
-    
+
+    /** {@inheritDoc} */
     @Override
     public void onCreate() {
-        // TODO Auto-generated method stub
         super.onCreate();
         java.util.logging.Logger.getLogger("org.apache.http.wire").setLevel(java.util.logging.Level.INFO);
         java.util.logging.Logger.getLogger("org.apache.http.headers").setLevel(java.util.logging.Level.INFO);
@@ -64,12 +77,14 @@ public class TranslateWikiApp extends Application implements MWApiApplication {
         System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http", "debug");
         System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.headers", "debug");
     }
-    
+
+    /** @return api instance for this application */
     @Override
     public MWApi getApi() {
         return api;
     }
-    
+
+    /** @return api instance for this application */
     @Override
     public Account getCurrentAccount() {
         if(currentAccount == null) {
@@ -111,5 +126,4 @@ public class TranslateWikiApp extends Application implements MWApiApplication {
     public void setCurrentAccount(Account account) {
        currentAccount = account; 
     }
-
 }

@@ -25,7 +25,9 @@
         <SearchView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/prefItemListSearchView"/>
+                android:id="@+id/prefItemListSearchView"
+                android:inputType="text"
+                android:imeOptions="actionSearch|flagNoFullscreen"/>
 
     </LinearLayout>
 

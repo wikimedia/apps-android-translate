@@ -29,13 +29,16 @@ import java.io.IOException;
 
 /**
  * Handles the task of reviewing (accepting) translated by others messages.
+ *
+ * @author      Or Sagi
+ * @version     %I%, %G%
+ * @since       1.0
  */
 public class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
 
     private Activity context;
     private MessageAdapter message;
 
-    // CTOR
     public ReviewTranslationTask(Activity context, MessageAdapter message) {
         this.context = context;
         this.message = message;
@@ -62,7 +65,7 @@ public class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
                     throw new RuntimeException();
                 }
             }
-            if(MainActivity.reviewToken == null || MainActivity.reviewToken.length()==0) {
+            if(MainActivity.reviewToken == null || MainActivity.reviewToken.length() == 0) {
                 ApiResult tokenResult;
                 tokenResult = app.getApi().action("tokens").param("type", "translationreview").post();
                 //Log.d("TWN", "First result is " + Utils.getStringFromDOM(tokenResult.getDocument())); // DEBUG
@@ -70,12 +73,11 @@ public class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
                 MainActivity.reviewToken = tokenResult.getString("/api/tokens/@translationreviewtoken");
                 //Log.d("TWN", "Token is " + MainActivity.reviewToken); // DEBUG
 
-                if (MainActivity.reviewToken==null ||MainActivity.reviewToken.length()==0)
-                {
+                //take care of no token error case
+                if (MainActivity.reviewToken==null || MainActivity.reviewToken.length() == 0) {
                     String warning = tokenResult.getString("/api/warnings/tokens");
-                    warning = ((warning==null || warning.length()==0 ) ? "no token!" : warning);
+                    warning = ((warning == null || warning.length() == 0 ) ? "no token!" : warning);
                     return warning;
-
                 }
 
             }
@@ -95,13 +97,10 @@ public class ReviewTranslationTask extends AsyncTask<Void, Void, String> {
     @Override
     protected void onPostExecute(String warning) {
         super.onPostExecute(warning);
-        if (warning !=null)
-        {
+        if (warning != null) {
             Toast warningToast = Toast.makeText(context, warning , Toast.LENGTH_LONG);
             warningToast.show();
-        }
-        else
-        {
+        } else {
             Toast successToast = Toast.makeText(context,message.getKey()+" accepted!", Toast.LENGTH_SHORT);
             successToast.show();
         }
